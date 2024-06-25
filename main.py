@@ -130,19 +130,9 @@ def output_excel(df, week, report_type, start_date, end_date):
 def main():
     st.set_page_config(layout="wide")
 
-    st.sidebar.header("Фильтры")
-    file_url = st.sidebar.text_input("Введите URL файла Excel")
-
-    if file_url:
-        st.write(f"Загрузка файла из URL: {file_url}")
-        try:
-            df = load_data(file_url)
-            st.write("Данные успешно загружены.")
-            create_dashboard(df)
-        except Exception as e:
-            st.error(f"Ошибка загрузки данных: {e}")
-    else:
-        st.info("Введите URL файла Excel.")
+    df = load_data("https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python%20copy.xlsx")
+    st.write("Данные успешно загружены.")
+    create_dashboard(df)
 
 if __name__ == "__main__":
     main()
