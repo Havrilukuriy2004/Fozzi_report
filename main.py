@@ -15,13 +15,13 @@ def load_data(url):
 # Filter data based on conditions
 def filter_data(df, week, report_type):
     if report_type == 'со счетом':
-        df_filtered = df[(df['week'] <= week) & (df['account'] == 'Да') & (df['Партнер'] == 'Да')]
+        df_filtered = df[(df['week'] <= week) & (df['account'] == 'Да') & (df['partner'] == 'Да')]
     else:
-        df_filtered = df[(df['week'] <= week) & (df['account'] == 'Нет') & (df['Партнер'] == 'Нет')]
+        df_filtered = df[(df['week'] <= week) & (df['account'] == 'Нет') & (df['partner'] == 'Нет')]
         mask_keywords = ['банк', 'пумб', 'держ', 'обл', 'дтек', 'вдвс', 'мвс', 'дсу', 'дснс', 'дпс', 'митна', 'гук']
-        df_filtered = df_filtered[~df_filtered['Плательщик'].str.contains('|'.join(mask_keywords), case=False, na=False)]
-        df_filtered = df_filtered[~df_filtered['Плательщик'].str.contains('район', case=False, na=False) | df_filtered[
-            'Плательщик'].str.contains('крайон', case=False, na=False)]
+        df_filtered = df_filtered[~df_filtered['payer'].str.contains('|'.join(mask_keywords), case=False, na=False)]
+        df_filtered = df_filtered[~df_filtered['payer'].str.contains('район', case=False, na=False) | df_filtered[
+            'payer'].str.contains('крайон', case=False, na=False)]
     return df_filtered
 
 # Add "others" and gross total to top 10 lists
@@ -49,15 +49,15 @@ def get_date_range_for_week(week_number, year):
 
 # Create the dashboard
 def create_dashboard(df):
-    st.sidebar.header("Filters")
-    selected_week = st.sidebar.selectbox("Select Week", sorted(df['week'].unique()))
-    selected_report_type = st.sidebar.radio("Select Report Type", ['со счетом', 'без счета'])
+    st.sidebar.header("Фильтры")
+    selected_week = st.sidebar.selectbox("Выберите неделю", sorted(df['week'].unique()))
+    selected_report_type = st.sidebar.radio("Выберите тип отчета", ['со счетом', 'без счета'])
 
-    st.write(f"Selected Week: {selected_week}")
-    st.write(f"Selected Report Type: {selected_report_type}")
+    st.write(f"Выбранная неделя: {selected_week}")
+    st.write(f"Выбранный тип отчета: {selected_report_type}")
 
     filtered_data = filter_data(df, selected_week, selected_report_type)
-    st.write(f"Filtered data shape: {filtered_data.shape}")  # Check the shape of filtered data
+    st.write(f"Фильтрованные данные: {filtered_data.shape}")  # Check the shape of filtered data
 
     start_date, end_date = get_date_range_for_week(selected_week, 2024)
     start_date_str = start_date.strftime('%d.%m.%Y')
@@ -71,80 +71,78 @@ def create_dashboard(df):
         </div>
     """, unsafe_allow_html=True)
 
-    st.header("Payments Dynamics")
+    st.header("Динамика платежей")
     if not filtered_data.empty:
         dynamics_data = filtered_data.groupby('week')['sum'].sum().reset_index()
         st.line_chart(dynamics_data.set_index('week'))
     else:
-        st.write("No data available for the selected filters.")
+        st.write("Нет данных для выбранных фильтров.")
 
-    st.header("Top Payments")
+    st.header("Топ платежей")
     if not filtered_data.empty:
-        top_payments = filtered_data.groupby('Плательщик')['sum'].sum().nlargest(10).reset_index()
+        top_payments = filtered_data.groupby('payer')['sum'].sum().nlargest(10).reset_index()
         st.table(top_payments)
     else:
-        st.write("No data available for the selected filters.")
+        st.write("Нет данных для выбранных фильтров.")
 
-    st.header("Supplier-Payer Matrix")
+    st.header("Матрица Поставщик-Плательщик")
     if not filtered_data.empty:
-        matrix_data = filtered_data.pivot_table(values='sum', index='Плательщик', columns='Получатель', aggfunc='sum',
-                                                fill_value=0)
+        matrix_data = filtered_data.pivot_table(values='sum', index='payer', columns='recipient', aggfunc='sum', fill_value=0)
         top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
         top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index(), 0).index
         matrix_data_filtered = matrix_data.loc[top_suppliers, top_payers]
         st.table(matrix_data_filtered)
     else:
-        st.write("No data available for the selected filters.")
+        st.write("Нет данных для выбранных фильтров.")
 
-    st.header("Top Suppliers")
+    st.header("Топ поставщиков")
     if not filtered_data.empty:
-        supplier_data = add_others_and_total(filtered_data.groupby('Плательщик')['sum'].sum().reset_index(), 'sum')
+        supplier_data = add_others_and_total(filtered_data.groupby('payer')['sum'].sum().reset_index(), 'sum')
         st.table(supplier_data)
     else:
-        st.write("No data available for the selected filters.")
+        st.write("Нет данных для выбранных фильтров.")
 
     # Button to download Excel report
-    if st.button("Download Excel Report"):
+    if st.button("Скачать отчет в формате Excel"):
         output_excel(filtered_data, selected_week, selected_report_type, start_date_str, end_date_str)
 
 def output_excel(df, week, report_type, start_date, end_date):
-    with pd.ExcelWriter('financial_report.xlsx', engine='openpyxl') as writer:
+    with pd.ExcelWriter('financial_report.xlsx') as writer:
         # Sheet 1: Dynamics of payments
         dynamics_data = df.groupby('week')['sum'].sum().reset_index()
-        dynamics_data.to_excel(writer, sheet_name='Dynamics', index=False)
+        dynamics_data.to_excel(writer, sheet_name='Динамика', index=False)
 
         # Sheet 2: Top payments by supplier and week
-        supplier_data = df.groupby(['week', 'Плательщик'])['sum'].sum().reset_index()
-        supplier_data.to_excel(writer, sheet_name='Supplier Payments', index=False)
+        supplier_data = df.groupby(['week', 'payer'])['sum'].sum().reset_index()
+        supplier_data.to_excel(writer, sheet_name='Платежи по поставщикам', index=False)
 
         # Sheet 3: Supplier-Payer Matrix
-        matrix_data = df.pivot_table(values='sum', index='Плательщик', columns='Получатель', aggfunc='sum',
-                                     fill_value=0)
+        matrix_data = df.pivot_table(values='sum', index='payer', columns='recipient', aggfunc='sum', fill_value=0)
         top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
         top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index(), 0).index
         matrix_data_filtered = matrix_data.loc[top_suppliers, top_payers]
-        matrix_data_filtered.to_excel(writer, sheet_name='Supplier-Payer Matrix', index=True)
+        matrix_data_filtered.to_excel(writer, sheet_name='Матрица поставщик-плательщик', index=True)
 
     with open('financial_report.xlsx', 'rb') as f:
-        st.download_button('Download Excel report', f, file_name='financial_report.xlsx')
+        st.download_button('Скачать отчет в формате Excel', f, file_name='financial_report.xlsx')
 
 # Main function to run the Streamlit app
 def main():
     st.set_page_config(layout="wide")
 
     st.sidebar.header("")
-    file_url = st.sidebar.text_input("Enter URL to the Excel file", value="https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python copy.xlsx")
+    file_url = st.sidebar.text_input("https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python сopy.xlsx")
 
     if file_url:
-        st.write(f"Loading file from URL: {file_url}")
+        st.write(f"Загрузка файла из URL: {file_url}")
         try:
             df = load_data(file_url)
-            st.write("Data loaded successfully.")
+            st.write("Данные успешно загружены.")
             create_dashboard(df)
         except Exception as e:
-            st.error(f"Error loading data: {e}")
+            st.error(f"Ошибка загрузки данных: {e}")
     else:
-        st.info("Please enter the URL to the Excel file.")
+        st.info("Введите URL файла Excel.")
 
 if __name__ == "__main__":
     main()
