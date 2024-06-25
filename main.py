@@ -26,11 +26,16 @@ def filter_data(df, week, report_type):
 
 # Add "others" and gross total to top 10 lists
 def add_others_and_total(data, col_name):
-    top_data = data.nlargest(10, col_name)
-    others_sum = data[~data.index.isin(top_data.index)][col_name].sum()
-    top_data.loc['Others'] = others_sum
-    total_sum = data[col_name].sum()
-    top_data.loc['Gross Total'] = total_sum
+    if len(data) > 10:
+        top_data = data.nlargest(10, col_name)
+        others_sum = data[~data.index.isin(top_data.index)][col_name].sum()
+        top_data.loc['Others'] = others_sum
+        total_sum = data[col_name].sum()
+        top_data.loc['Gross Total'] = total_sum
+    else:
+        top_data = data.copy()
+        total_sum = data[col_name].sum()
+        top_data.loc['Gross Total'] = total_sum
     return top_data
 
 # Function to calculate the date range for a given week number
@@ -67,24 +72,36 @@ def create_dashboard(df):
     """, unsafe_allow_html=True)
 
     st.header("Payments Dynamics")
-    dynamics_data = filtered_data.groupby('week')['sum'].sum().reset_index()
-    st.line_chart(dynamics_data.set_index('week'))
+    if not filtered_data.empty:
+        dynamics_data = filtered_data.groupby('week')['sum'].sum().reset_index()
+        st.line_chart(dynamics_data.set_index('week'))
+    else:
+        st.write("No data available for the selected filters.")
 
     st.header("Top Payments")
-    top_payments = filtered_data.groupby('Плательщик')['sum'].sum().nlargest(10).reset_index()
-    st.table(top_payments)
+    if not filtered_data.empty:
+        top_payments = filtered_data.groupby('Плательщик')['sum'].sum().nlargest(10).reset_index()
+        st.table(top_payments)
+    else:
+        st.write("No data available for the selected filters.")
 
     st.header("Supplier-Payer Matrix")
-    matrix_data = filtered_data.pivot_table(values='sum', index='Плательщик', columns='Получатель', aggfunc='sum',
-                                            fill_value=0)
-    top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
-    top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index(), 0).index
-    matrix_data_filtered = matrix_data.loc[top_suppliers, top_payers]
-    st.table(matrix_data_filtered)
+    if not filtered_data.empty:
+        matrix_data = filtered_data.pivot_table(values='sum', index='Плательщик', columns='Получатель', aggfunc='sum',
+                                                fill_value=0)
+        top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
+        top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index(), 0).index
+        matrix_data_filtered = matrix_data.loc[top_suppliers, top_payers]
+        st.table(matrix_data_filtered)
+    else:
+        st.write("No data available for the selected filters.")
 
     st.header("Top Suppliers")
-    supplier_data = add_others_and_total(filtered_data.groupby('Плательщик')['sum'].sum().reset_index(), 'sum')
-    st.table(supplier_data)
+    if not filtered_data.empty:
+        supplier_data = add_others_and_total(filtered_data.groupby('Плательщик')['sum'].sum().reset_index(), 'sum')
+        st.table(supplier_data)
+    else:
+        st.write("No data available for the selected filters.")
 
     # Button to download Excel report
     if st.button("Download Excel Report"):
@@ -116,7 +133,7 @@ def main():
     st.set_page_config(layout="wide")
 
     st.sidebar.header("")
-    file_url = st.sidebar.text_input("Enter URL to the Excel file", value="https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python copy.xlsx")
+    file_url = st.sidebar.text_input("Enter URL to the Excel file", value="https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python.xlsx")
 
     if file_url:
         st.write(f"Loading file from URL: {file_url}")
