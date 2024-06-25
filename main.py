@@ -108,7 +108,7 @@ def output_excel(df, week, report_type, start_date, end_date):
 def main():
     st.set_page_config(layout="wide")
 
-    st.sidebar.header("raw_data_for_python.xlsx")
+    st.sidebar.header("")
     file_path = st.sidebar.text_input("raw_data_for_python.xlsx")
 
     if file_path:
