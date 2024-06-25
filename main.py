@@ -87,19 +87,30 @@ def create_dashboard(df):
     else:
         st.write("Нет данных для выбранных фильтров.")
 
-    st.header("Матрица Поставщик-Плательщик")
+    st.header("Таблица Поставщик-Плательщик")
     if not filtered_data.empty:
         # Ensure consistent types for matrix creation
         filtered_data['payer'] = filtered_data['payer'].astype(str)
         filtered_data['recipient'] = filtered_data['recipient'].astype(str)
+        
+        # Create the pivot table
         matrix_data = filtered_data.pivot_table(values='sum', index='payer', columns='recipient', aggfunc='sum', fill_value=0)
-        st.write(f"Матрица данных: {matrix_data.shape}")  # Check the shape of matrix data
-        top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
-        top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index(), 0).index
-        st.write(f"Топ поставщики: {top_suppliers}")  # Debug: Check top suppliers
-        st.write(f"Топ плательщики: {top_payers}")  # Debug: Check top payers
-        matrix_data_filtered = matrix_data.loc[matrix_data.index.intersection(top_suppliers), matrix_data.columns.intersection(top_payers)]
-        st.table(matrix_data_filtered)
+        
+        # Get top suppliers and top payers
+        top_suppliers = add_others_and_total(matrix_data.sum(axis=0).reset_index(), 0).index
+        top_payers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
+        
+        # Create a new DataFrame to store the results
+        result_df = pd.DataFrame(columns=top_suppliers)
+        
+        for payer in top_payers:
+            result_df.loc[payer] = matrix_data.loc[payer, top_suppliers].values if payer in matrix_data.index else [0]*len(top_suppliers)
+        
+        # Add the total sum for rows and columns
+        result_df.loc['Gross Total'] = result_df.sum(axis=0)
+        result_df['Gross Total'] = result_df.sum(axis=1)
+        
+        st.table(result_df)
     else:
         st.write("Нет данных для выбранных фильтров.")
 
