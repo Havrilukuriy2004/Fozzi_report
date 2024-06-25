@@ -10,8 +10,6 @@ import datetime
 def load_data(url):
     response = requests.get(url)
     df = pd.read_excel(BytesIO(response.content), engine='openpyxl')
-    # Convert all object columns to string to avoid serialization issues
-    df = df.astype({col: 'string' for col in df.select_dtypes(include='object').columns})
     return df
 
 # Filter data based on conditions
@@ -97,8 +95,8 @@ def create_dashboard(df):
         matrix_data = filtered_data.pivot_table(values='sum', index='recipient', columns='payer', aggfunc='sum', fill_value=0)
         
         # Get top suppliers and top payers
-        top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
-        top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index(), 0).index
+        top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index().rename(columns={0: 'sum'}), 'sum').index
+        top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index().rename(columns={0: 'sum'}), 'sum').index
         
         # Create a new DataFrame to store the results
         result_df = pd.DataFrame(columns=top_suppliers)
@@ -149,8 +147,8 @@ def output_excel(df, week, report_type, start_date, end_date):
 
         # Sheet 3: Supplier-Payer Matrix
         matrix_data = df.pivot_table(values='sum', index='payer', columns='recipient', aggfunc='sum', fill_value=0)
-        top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
-        top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index(), 0).index
+        top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index().rename(columns={0: 'sum'}), 'sum').index
+        top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index().rename(columns={0: 'sum'}), 'sum').index
         matrix_data_filtered = matrix_data.loc[matrix_data.index.intersection(top_suppliers), matrix_data.columns.intersection(top_payers)]
         matrix_data_filtered.to_excel(writer, sheet_name='Матрица поставщик-плательщик', index=True)
 
@@ -165,7 +163,7 @@ def main():
     file_url = "https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx"
 
     if file_url:
-        st.write(f"Загрузка файла из URL: {file_url}")
+        st.write(f"Загрузка данных из: {file_url}")
         try:
             df = load_data(file_url)
             st.write("Данные успешно загружены.")
