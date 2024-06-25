@@ -1,13 +1,15 @@
 import streamlit as st
 import pandas as pd
 import openpyxl
-import os
+import requests
+from io import BytesIO
 
 
-# Load the Excel file
+# Load the Excel file from URL
 @st.cache
-def load_data(file_path):
-    df = pd.read_excel(file_path)
+def load_data(url):
+    response = requests.get(url)
+    df = pd.read_excel(BytesIO(response.content))
     return df
 
 
@@ -113,19 +115,18 @@ def main():
     st.set_page_config(layout="wide")
 
     st.sidebar.header("")
-    file_path = st.sidebar.text_input("raw_data_for_python.xlsx")
+    file_url = st.sidebar.text_input("Enter URL to the Excel file")
 
-    if file_path:
-        st.write(f"Loading file from path: {file_path}")
-        if os.path.exists(file_path):
-            st.write("File found, loading data...")
-            df = load_data(file_path)
+    if file_url:
+        st.write(f"Loading file from URL: {file_url}")
+        try:
+            df = load_data(file_url)
             st.write("Data loaded successfully.")
             create_dashboard(df)
-        else:
-            st.error("File not found. Please enter a valid file path.")
+        except Exception as e:
+            st.error(f"Error loading data: {e}")
     else:
-        st.info("Please enter the file path to the Excel file.")
+        st.info("Please enter the URL to the Excel file.")
 
 
 if __name__ == "__main__":
