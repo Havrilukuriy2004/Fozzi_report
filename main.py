@@ -3,32 +3,30 @@ import pandas as pd
 import openpyxl
 import requests
 from io import BytesIO
-
+import datetime
 
 # Load the Excel file from URL
 @st.cache
 def load_data(url):
     response = requests.get(url)
-    df = pd.read_excel(BytesIO(response.content))
+    df = pd.read_excel(BytesIO(response.content), engine='openpyxl')
     return df
-
 
 # Filter data based on conditions
 def filter_data(df, week, report_type):
     if report_type == 'со счетом':
         df_filtered = df[(df['Неделя'] <= week) &
-                         (df['Наличие открытого UAH счета 2600, 2605  или 2650 у партнера в дату проводки'] == 'Да') &
+                         (df['Наличие открытого UAH счета 2600, 2605 или 2650 у партнера в дату проводки'] == 'Да') &
                          (df['Партнер'] == 'Да')]
     else:
         df_filtered = df[(df['Неделя'] <= week) &
-                         (df['Наличие открытого UAH счета 2600, 2605  или 2650 у партнера в дату проводки'] == 'Нет') &
+                         (df['Наличие открытого UAH счета 2600, 2605 или 2650 у партнера в дату проводки'] == 'Нет') &
                          (df['Партнер'] == 'Нет')]
         mask_keywords = ['банк', 'пумб', 'держ', 'обл', 'дтек', 'вдвс', 'мвс', 'дсу', 'дснс', 'дпс', 'митна', 'гук']
         df_filtered = df_filtered[~df_filtered['Поставщик'].str.contains('|'.join(mask_keywords), case=False, na=False)]
         df_filtered = df_filtered[~df_filtered['Поставщик'].str.contains('район', case=False, na=False) | df_filtered[
             'Поставщик'].str.contains('крайон', case=False, na=False)]
     return df_filtered
-
 
 # Add "others" and gross total to top 10 lists
 def add_others_and_total(data, col_name):
@@ -39,6 +37,14 @@ def add_others_and_total(data, col_name):
     top_data.loc['Gross Total'] = total_sum
     return top_data
 
+# Function to calculate the date range for a given week number
+def get_date_range_for_week(week_number, year):
+    first_day_of_year = datetime.datetime(year, 1, 1)
+    # Calculate the Monday of the specified week
+    monday = first_day_of_year + datetime.timedelta(weeks=week_number - 1, days=-first_day_of_year.weekday())
+    # Calculate the Sunday of the specified week
+    sunday = monday + datetime.timedelta(days=6)
+    return monday, sunday
 
 # Create the dashboard
 def create_dashboard(df):
@@ -52,13 +58,14 @@ def create_dashboard(df):
     filtered_data = filter_data(df, selected_week, selected_report_type)
     st.write(f"Filtered data shape: {filtered_data.shape}")  # Check the shape of filtered data
 
-    start_date = df[df['Неделя'] == selected_week]['Дата проводки'].min().strftime('%d.%m.%Y')
-    end_date = df[df['Неделя'] == selected_week]['Дата проводки'].max().strftime('%d.%m.%Y')
+    start_date, end_date = get_date_range_for_week(selected_week, 2024)
+    start_date_str = start_date.strftime('%d.%m.%Y')
+    end_date_str = end_date.strftime('%d.%m.%Y')
 
     # Title and styling
     st.markdown(f"""
         <div style="background-color:#FFA500;padding:10px;border-radius:10px">
-            <h1 style="color:white;text-align:center;">Платежи на крупных контрагентов ФОЗЗИ за пределы Востока за период {start_date} - {end_date}</h1>
+            <h1 style="color:white;text-align:center;">Платежи на крупных контрагентов ФОЗЗИ за пределы Востока за период {start_date_str} - {end_date_str}</h1>
             <h2 style="color:white;text-align:right;">Неделя {selected_week}</h2>
         </div>
     """, unsafe_allow_html=True)
@@ -85,11 +92,10 @@ def create_dashboard(df):
 
     # Button to download Excel report
     if st.button("Download Excel Report"):
-        output_excel(filtered_data, selected_week, selected_report_type, start_date, end_date)
-
+        output_excel(filtered_data, selected_week, selected_report_type, start_date_str, end_date_str)
 
 def output_excel(df, week, report_type, start_date, end_date):
-    with pd.ExcelWriter('financial_report.xlsx') as writer:
+    with pd.ExcelWriter('financial_report.xlsx', engine='openpyxl') as writer:
         # Sheet 1: Dynamics of payments
         dynamics_data = df.groupby('Неделя')['Сумма'].sum().reset_index()
         dynamics_data.to_excel(writer, sheet_name='Dynamics', index=False)
@@ -109,13 +115,12 @@ def output_excel(df, week, report_type, start_date, end_date):
     with open('financial_report.xlsx', 'rb') as f:
         st.download_button('Download Excel report', f, file_name='financial_report.xlsx')
 
-
 # Main function to run the Streamlit app
 def main():
     st.set_page_config(layout="wide")
 
     st.sidebar.header("")
-    file_url = st.sidebar.text_input("Enter URL to the Excel file")
+    file_url = st.sidebar.text_input("Enter URL to the Excel file", value="https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python.xlsx")
 
     if file_url:
         st.write(f"Loading file from URL: {file_url}")
@@ -127,7 +132,6 @@ def main():
             st.error(f"Error loading data: {e}")
     else:
         st.info("Please enter the URL to the Excel file.")
-
 
 if __name__ == "__main__":
     main()
