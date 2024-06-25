@@ -15,9 +15,9 @@ def load_data(url):
 # Filter data based on conditions
 def filter_data(df, week, report_type):
     if report_type == 'со счетом':
-        df_filtered = df[(df['week'] <= week) & (df['account'].str.lower() == 'да') & (df['partner'].str.lower() == 'да')]
+        df_filtered = df[(df['week'] <= week) & (df['account'] == 'Да') & (df['partner'] == 'Да')]
     else:
-        df_filtered = df[(df['week'] <= week) & (df['account'].str.lower() == 'нет') & (df['partner'].str.lower() == 'нет')]
+        df_filtered = df[(df['week'] <= week) & (df['account'] == 'Нет') & (df['partner'] == 'Нет')]
         mask_keywords = ['банк', 'пумб', 'держ', 'обл', 'дтек', 'вдвс', 'мвс', 'дсу', 'дснс', 'дпс', 'митна', 'гук']
         df_filtered = df_filtered[~df_filtered['payer'].str.contains('|'.join(mask_keywords), case=False, na=False)]
         df_filtered = df_filtered[~df_filtered['payer'].str.contains('район', case=False, na=False) | df_filtered[
@@ -61,7 +61,7 @@ def create_dashboard(df):
 
     start_date, end_date = get_date_range_for_week(selected_week, 2024)
     start_date_str = start_date.strftime('%d.%m.%Y')
-    end_date_str = end_date.strftime('%d.%м.%Y')
+    end_date_str = end_date.strftime('%d.%m.%Y')
 
     # Title and styling
     st.markdown(f"""
@@ -90,7 +90,7 @@ def create_dashboard(df):
         matrix_data = filtered_data.pivot_table(values='sum', index='payer', columns='recipient', aggfunc='sum', fill_value=0)
         top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
         top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index(), 0).index
-        matrix_data_filtered = matrix_data.loc[top_suppliers, top_payers]
+        matrix_data_filtered = matrix_data.loc[matrix_data.index.intersection(top_suppliers), matrix_data.columns.intersection(top_payers)]
         st.table(matrix_data_filtered)
     else:
         st.write("Нет данных для выбранных фильтров.")
@@ -99,6 +99,15 @@ def create_dashboard(df):
     if not filtered_data.empty:
         supplier_data = add_others_and_total(filtered_data.groupby('payer')['sum'].sum().reset_index(), 'sum')
         st.table(supplier_data)
+    else:
+        st.write("Нет данных для выбранных фильтров.")
+
+    st.header("Получатель по неделям")
+    if not filtered_data.empty:
+        recipient_week_data = filtered_data.pivot_table(values='sum', index='recipient', columns='week', aggfunc='sum', fill_value=0)
+        recipient_week_data['Всего'] = recipient_week_data.sum(axis=1)
+        recipient_week_data_sorted = add_others_and_total(recipient_week_data.sort_values('Всего', ascending=False).reset_index(), 'Всего')
+        st.table(recipient_week_data_sorted)
     else:
         st.write("Нет данных для выбранных фильтров.")
 
@@ -120,7 +129,7 @@ def output_excel(df, week, report_type, start_date, end_date):
         matrix_data = df.pivot_table(values='sum', index='payer', columns='recipient', aggfunc='sum', fill_value=0)
         top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
         top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index(), 0).index
-        matrix_data_filtered = matrix_data.loc[top_suppliers, top_payers]
+        matrix_data_filtered = matrix_data.loc[matrix_data.index.intersection(top_suppliers), matrix_data.columns.intersection(top_payers)]
         matrix_data_filtered.to_excel(writer, sheet_name='Матрица поставщик-плательщик', index=True)
 
     with open('financial_report.xlsx', 'rb') as f:
@@ -130,9 +139,19 @@ def output_excel(df, week, report_type, start_date, end_date):
 def main():
     st.set_page_config(layout="wide")
 
-    df = load_data("https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx")
-    st.write("Данные успешно загружены.")
-    create_dashboard(df)
+    st.sidebar.header("Фильтры")
+    file_url = "https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx"
+
+    if file_url:
+        st.write(f"Загрузка файла из URL: {file_url}")
+        try:
+            df = load_data(file_url)
+            st.write("Данные успешно загружены.")
+            create_dashboard(df)
+        except Exception as e:
+            st.error(f"Ошибка загрузки данных: {e}")
+    else:
+        st.info("Введите URL файла Excel.")
 
 if __name__ == "__main__":
     main()
