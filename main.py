@@ -6,7 +6,7 @@ from io import BytesIO
 import datetime
 
 # Load the Excel file from URL
-@st.cache
+@st.cache_data
 def load_data(url):
     response = requests.get(url)
     df = pd.read_excel(BytesIO(response.content), engine='openpyxl')
