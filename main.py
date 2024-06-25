@@ -89,6 +89,9 @@ def create_dashboard(df):
 
     st.header("Матрица Поставщик-Плательщик")
     if not filtered_data.empty:
+        # Ensure consistent types for matrix creation
+        filtered_data['payer'] = filtered_data['payer'].astype(str)
+        filtered_data['recipient'] = filtered_data['recipient'].astype(str)
         matrix_data = filtered_data.pivot_table(values='sum', index='payer', columns='recipient', aggfunc='sum', fill_value=0)
         st.write(f"Матрица данных: {matrix_data.shape}")  # Check the shape of matrix data
         top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
