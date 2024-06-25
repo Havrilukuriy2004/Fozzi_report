@@ -99,14 +99,14 @@ def create_dashboard(df):
         top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index().rename(columns={0: 'sum'}), 'sum').index
         
         # Create a new DataFrame to store the results
-        result_df = pd.DataFrame(columns=top_suppliers)
-        
+        result_df = pd.DataFrame(index=top_suppliers, columns=top_payers)
+
         for payer in top_payers:
             if payer in matrix_data.columns:
-                result_df.loc[payer] = matrix_data[payer].reindex(top_suppliers).values
+                result_df[payer] = matrix_data[payer].reindex(top_suppliers).values
             else:
-                result_df.loc[payer] = [0] * len(top_suppliers)
-        
+                result_df[payer] = [0] * len(top_suppliers)
+
         # Add the total sum for rows and columns
         result_df.loc['Gross Total'] = result_df.sum(axis=0)
         result_df['Gross Total'] = result_df.sum(axis=1)
