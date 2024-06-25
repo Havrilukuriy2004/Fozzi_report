@@ -15,9 +15,9 @@ def load_data(url):
 # Filter data based on conditions
 def filter_data(df, week, report_type):
     if report_type == 'со счетом':
-        df_filtered = df[(df['week'] <= week) & (df['account'] == 'Да') & (df['partner'] == 'Да')]
+        df_filtered = df[(df['week'] <= week) & (df['account'].str.lower() == 'да') & (df['partner'].str.lower() == 'да')]
     else:
-        df_filtered = df[(df['week'] <= week) & (df['account'] == 'Нет') & (df['partner'] == 'Нет')]
+        df_filtered = df[(df['week'] <= week) & (df['account'].str.lower() == 'нет') & (df['partner'].str.lower() == 'нет')]
         mask_keywords = ['банк', 'пумб', 'держ', 'обл', 'дтек', 'вдвс', 'мвс', 'дсу', 'дснс', 'дпс', 'митна', 'гук']
         df_filtered = df_filtered[~df_filtered['payer'].str.contains('|'.join(mask_keywords), case=False, na=False)]
         df_filtered = df_filtered[~df_filtered['payer'].str.contains('район', case=False, na=False) | df_filtered[
@@ -61,7 +61,7 @@ def create_dashboard(df):
 
     start_date, end_date = get_date_range_for_week(selected_week, 2024)
     start_date_str = start_date.strftime('%d.%m.%Y')
-    end_date_str = end_date.strftime('%d.%m.%Y')
+    end_date_str = end_date.strftime('%d.%м.%Y')
 
     # Title and styling
     st.markdown(f"""
@@ -130,7 +130,7 @@ def output_excel(df, week, report_type, start_date, end_date):
 def main():
     st.set_page_config(layout="wide")
 
-    df = load_data("https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx")
+    df = load_data("https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python%20copy.xlsx")
     st.write("Данные успешно загружены.")
     create_dashboard(df)
 
