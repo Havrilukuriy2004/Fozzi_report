@@ -6,7 +6,7 @@ from io import BytesIO
 import datetime
 
 # Load the Excel file from URL
-@st.cache_data
+@st.cache
 def load_data(url):
     response = requests.get(url)
     df = pd.read_excel(BytesIO(response.content), engine='openpyxl')
@@ -37,7 +37,7 @@ def add_others_and_total(data, col_name):
 def get_date_range_for_week(week_number, year):
     first_day_of_year = datetime.datetime(year, 1, 1)
     # Calculate the Monday of the specified week
-    monday = first_day_of_year + datetime.timedelta(weeks=week_number - 1, days=-first_day_of_year.weekday())
+    monday = first_day_of_year + datetime.timedelta(weeks=int(week_number) - 1, days=-first_day_of_year.weekday())
     # Calculate the Sunday of the specified week
     sunday = monday + datetime.timedelta(days=6)
     return monday, sunday
@@ -116,7 +116,7 @@ def main():
     st.set_page_config(layout="wide")
 
     st.sidebar.header("")
-    file_url = st.sidebar.text_input("Enter URL to the Excel file", value="https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python copy.xlsx")
+    file_url = st.sidebar.text_input("Enter URL to the Excel file", value="https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python.xlsx")
 
     if file_url:
         st.write(f"Loading file from URL: {file_url}")
