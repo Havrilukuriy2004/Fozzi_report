@@ -14,6 +14,7 @@ def load_data(url):
 
 # Filter data based on conditions
 def filter_data(df, week, report_type):
+    st.write("Column names in the dataset:", df.columns.tolist())  # Print column names for debugging
     if report_type == 'со счетом':
         df_filtered = df[(df['Неделя'] <= week) &
                          (df['Наличие открытого UAH счета 2600, 2605 или 2650 у партнера в дату проводки'] == 'Да') &
@@ -23,9 +24,9 @@ def filter_data(df, week, report_type):
                          (df['Наличие открытого UAH счета 2600, 2605 или 2650 у партнера в дату проводки'] == 'Нет') &
                          (df['Партнер'] == 'Нет')]
         mask_keywords = ['банк', 'пумб', 'держ', 'обл', 'дтек', 'вдвс', 'мвс', 'дсу', 'дснс', 'дпс', 'митна', 'гук']
-        df_filtered = df_filtered[~df_filtered['Поставщик'].str.contains('|'.join(mask_keywords), case=False, na=False)]
-        df_filtered = df_filtered[~df_filtered['Поставщик'].str.contains('район', case=False, na=False) | df_filtered[
-            'Поставщик'].str.contains('крайон', case=False, na=False)]
+        df_filtered = df_filtered[~df_filtered['Плательщик'].str.contains('|'.join(mask_keywords), case=False, na=False)]
+        df_filtered = df_filtered[~df_filtered['Плательщик'].str.contains('район', case=False, na=False) | df_filtered[
+            'Плательщик'].str.contains('крайон', case=False, na=False)]
     return df_filtered
 
 # Add "others" and gross total to top 10 lists
@@ -75,11 +76,11 @@ def create_dashboard(df):
     st.line_chart(dynamics_data.set_index('Неделя'))
 
     st.header("Top Payments")
-    top_payments = filtered_data.groupby('Поставщик')['Сумма'].sum().nlargest(10).reset_index()
+    top_payments = filtered_data.groupby('Плательщик')['Сумма'].sum().nlargest(10).reset_index()
     st.table(top_payments)
 
     st.header("Supplier-Payer Matrix")
-    matrix_data = filtered_data.pivot_table(values='Сумма', index='Поставщик', columns='Плательщик', aggfunc='sum',
+    matrix_data = filtered_data.pivot_table(values='Сумма', index='Плательщик', columns='Получатель', aggfunc='sum',
                                             fill_value=0)
     top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
     top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index(), 0).index
@@ -87,7 +88,7 @@ def create_dashboard(df):
     st.table(matrix_data_filtered)
 
     st.header("Top Suppliers")
-    supplier_data = add_others_and_total(filtered_data.groupby('Поставщик')['Сумма'].sum().reset_index(), 'Сумма')
+    supplier_data = add_others_and_total(filtered_data.groupby('Плательщик')['Сумма'].sum().reset_index(), 'Сумма')
     st.table(supplier_data)
 
     # Button to download Excel report
@@ -101,11 +102,11 @@ def output_excel(df, week, report_type, start_date, end_date):
         dynamics_data.to_excel(writer, sheet_name='Dynamics', index=False)
 
         # Sheet 2: Top payments by supplier and week
-        supplier_data = df.groupby(['Неделя', 'Поставщик'])['Сумма'].sum().reset_index()
+        supplier_data = df.groupby(['Неделя', 'Плательщик'])['Сумма'].sum().reset_index()
         supplier_data.to_excel(writer, sheet_name='Supplier Payments', index=False)
 
         # Sheet 3: Supplier-Payer Matrix
-        matrix_data = df.pivot_table(values='Сумма', index='Поставщик', columns='Плательщик', aggfunc='sum',
+        matrix_data = df.pivot_table(values='Сумма', index='Плательщик', columns='Получатель', aggfunc='sum',
                                      fill_value=0)
         top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
         top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index(), 0).index
