@@ -10,14 +10,16 @@ import datetime
 def load_data(url):
     response = requests.get(url)
     df = pd.read_excel(BytesIO(response.content), engine='openpyxl')
+    # Convert all object columns to string to avoid serialization issues
+    df = df.astype({col: 'string' for col in df.select_dtypes(include='object').columns})
     return df
 
 # Filter data based on conditions
 def filter_data(df, week, report_type):
     if report_type == 'со счетом':
-        df_filtered = df[(df['week'] <= week) & (df['account'] == 'да') & (df['partner'] == 'да')]
+        df_filtered = df[(df['week'] <= week) & (df['account'] == 'Да') & (df['partner'] == 'Да')]
     else:
-        df_filtered = df[(df['week'] <= week) & (df['account'] == 'нет') & (df['partner'] == 'нет')]
+        df_filtered = df[(df['week'] <= week) & (df['account'] == 'Нет') & (df['partner'] == 'Нет')]
         mask_keywords = ['банк', 'пумб', 'держ', 'обл', 'дтек', 'вдвс', 'мвс', 'дсу', 'дснс', 'дпс', 'митна', 'гук']
         df_filtered = df_filtered[~df_filtered['payer'].str.contains('|'.join(mask_keywords), case=False, na=False)]
         df_filtered = df_filtered[~df_filtered['payer'].str.contains('район', case=False, na=False) | df_filtered[
