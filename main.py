@@ -130,8 +130,8 @@ def output_excel(df, week, report_type, start_date, end_date):
 def main():
     st.set_page_config(layout="wide")
 
-    st.sidebar.header("")
-    file_url = st.sidebar.text_input("https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python сopy.xlsx")
+    st.sidebar.header("Фильтры")
+    file_url = st.sidebar.text_input("Введите URL файла Excel")
 
     if file_url:
         st.write(f"Загрузка файла из URL: {file_url}")
