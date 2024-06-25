@@ -116,7 +116,7 @@ def main():
     st.set_page_config(layout="wide")
 
     st.sidebar.header("")
-    file_url = st.sidebar.text_input("Enter URL to the Excel file", value="https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python.xlsx")
+    file_url = st.sidebar.text_input("Enter URL to the Excel file", value="https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python copy.xlsx")
 
     if file_url:
         st.write(f"Loading file from URL: {file_url}")
