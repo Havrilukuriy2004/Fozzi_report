@@ -94,23 +94,26 @@ def create_dashboard(df):
         filtered_data['recipient'] = filtered_data['recipient'].astype(str)
         
         # Create the pivot table
-        matrix_data = filtered_data.pivot_table(values='sum', index='payer', columns='recipient', aggfunc='sum', fill_value=0)
+        matrix_data = filtered_data.pivot_table(values='sum', index='recipient', columns='payer', aggfunc='sum', fill_value=0)
         
         # Get top suppliers and top payers
-        top_suppliers = add_others_and_total(matrix_data.sum(axis=0).reset_index(), 0).index
-        top_payers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
+        top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
+        top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index(), 0).index
         
         # Create a new DataFrame to store the results
         result_df = pd.DataFrame(columns=top_suppliers)
         
         for payer in top_payers:
-            result_df.loc[payer] = matrix_data.loc[payer, top_suppliers].values if payer in matrix_data.index else [0]*len(top_suppliers)
+            if payer in matrix_data.columns:
+                result_df.loc[payer] = matrix_data[payer].reindex(top_suppliers).values
+            else:
+                result_df.loc[payer] = [0] * len(top_suppliers)
         
         # Add the total sum for rows and columns
         result_df.loc['Gross Total'] = result_df.sum(axis=0)
         result_df['Gross Total'] = result_df.sum(axis=1)
         
-        st.table(result_df)
+        st.table(result_df.T)
     else:
         st.write("Нет данных для выбранных фильтров.")
 
