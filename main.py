@@ -64,7 +64,7 @@ def create_dashboard(df):
 
     start_date, end_date = get_date_range_for_week(selected_week, 2024)
     start_date_str = start_date.strftime('%d.%m.%Y')
-    end_date_str = end_date.strftime('%d.%m.%Y')
+    end_date_str = end_date.strftime('%d.%м.%Y')
 
     # Заголовок и стили
     st.markdown(f"""
@@ -124,6 +124,9 @@ def create_dashboard(df):
 
         # Debug: Print lengths of data and columns
         print("Summary data length:", len(summary_data))
+        for row in summary_data:
+            print("Row length:", len(row), "Row content:", row)
+        
         print("Column length:", len(["Recipient"] + top_10_payers.tolist() + ["Others", "Total"]))
 
         # Создаем DataFrame для сводной таблицы
