@@ -14,17 +14,14 @@ def load_data(url):
 
 # Filter data based on conditions
 def filter_data(df, week, report_type):
-    st.write("Columns in DataFrame:", df.columns.tolist())
-    
-    # Check if 'account' and 'partner' columns exist
     if 'account' not in df.columns or 'partner' not in df.columns:
         st.error("'account' or 'partner' columns not found in the data.")
         return pd.DataFrame()  # Return an empty DataFrame
     
     if report_type == 'со счетом':
-        df_filtered = df[(df['week'] <= week) & (df['account'].str.lower() == 'да') & (df['partner'].str.lower() == 'да')]
+        df_filtered = df[(df['week'] == week) & (df['account'].str.lower() == 'да') & (df['partner'].str.lower() == 'да')]
     else:
-        df_filtered = df[(df['week'] <= week) & (df['account'].str.lower() == 'нет') & (df['partner'].str.lower() == 'нет')]
+        df_filtered = df[(df['week'] == week) & (df['account'].str.lower() == 'нет') & (df['partner'].str.lower() == 'нет')]
         mask_keywords = ['банк', 'пумб', 'держ', 'обл', 'дтек', 'вдвс', 'мвс', 'дсу', 'дснс', 'дпс', 'митна', 'гук']
         df_filtered = df_filtered[~df_filtered['payer'].str.contains('|'.join(mask_keywords), case=False, na=False)]
         df_filtered = df_filtered[~df_filtered['payer'].str.contains('район', case=False, na=False) | df_filtered['payer'].str.contains('крайон', case=False, na=False)]
@@ -32,16 +29,11 @@ def filter_data(df, week, report_type):
 
 # Add "others" and gross total to top 10 lists
 def add_others_and_total(data, col_name):
-    if len(data) > 10:
-        top_data = data.nlargest(10, col_name)
-        others_sum = data[~data.index.isin(top_data.index)][col_name].sum()
-        top_data.loc['Others'] = others_sum
-        total_sum = data[col_name].sum()
-        top_data.loc['Gross Total'] = total_sum
-    else:
-        top_data = data.copy()
-        total_sum = data[col_name].sum()
-        top_data.loc['Gross Total'] = total_sum
+    top_data = data.nlargest(10, col_name)
+    others_sum = data[~data.index.isin(top_data.index)][col_name].sum()
+    top_data.loc['Others'] = others_sum
+    total_sum = data[col_name].sum()
+    top_data.loc['Gross Total'] = total_sum
     return top_data
 
 # Function to calculate the date range for a given week number
@@ -95,17 +87,24 @@ def create_dashboard(df):
     if not filtered_data.empty:
         matrix_data = filtered_data.pivot_table(values='sum', index='payer', columns='recipient', aggfunc='sum', fill_value=0)
 
-        # Add debug prints
-        st.write("Matrix Data Indexes:", matrix_data.index.tolist())
-        st.write("Matrix Data Columns:", matrix_data.columns.tolist())
-        
-        top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
-        top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index(), 0).index
+        # Top suppliers and payers
+        supplier_sums = matrix_data.sum(axis=1).sort_values(ascending=False)
+        payer_sums = matrix_data.sum(axis=0).sort_values(ascending=False)
 
-        st.write("Top Suppliers:", top_suppliers.tolist())
-        st.write("Top Payers:", top_payers.tolist())
+        top_suppliers = add_others_and_total(supplier_sums.reset_index(), 0).index
+        top_payers = add_others_and_total(payer_sums.reset_index(), 0).index
 
+        # Append "Others" and "Gross Total"
+        matrix_data.loc['Others'] = matrix_data.loc[~matrix_data.index.isin(top_suppliers)].sum()
+        matrix_data.loc['Gross Total'] = matrix_data.sum()
+        matrix_data['Others'] = matrix_data[~matrix_data.columns.isin(top_payers)].sum(axis=1)
+        matrix_data['Gross Total'] = matrix_data.sum(axis=1)
+
+        # Filter top suppliers and payers
+        top_suppliers = top_suppliers.tolist() + ['Others', 'Gross Total']
+        top_payers = top_payers.tolist() + ['Others', 'Gross Total']
         matrix_data_filtered = matrix_data.loc[top_suppliers, top_payers]
+
         st.table(matrix_data_filtered)
     else:
         st.write("Нет данных для выбранных фильтров.")
@@ -135,7 +134,18 @@ def output_excel(df, week, report_type, start_date, end_date):
         matrix_data = df.pivot_table(values='sum', index='payer', columns='recipient', aggfunc='sum', fill_value=0)
         top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
         top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index(), 0).index
+
+        # Append "Others" and "Gross Total"
+        matrix_data.loc['Others'] = matrix_data.loc[~matrix_data.index.isin(top_suppliers)].sum()
+        matrix_data.loc['Gross Total'] = matrix_data.sum()
+        matrix_data['Others'] = matrix_data[~matrix_data.columns.isin(top_payers)].sum(axis=1)
+        matrix_data['Gross Total'] = matrix_data.sum(axis=1)
+
+        # Filter top suppliers and payers
+        top_suppliers = top_suppliers.tolist() + ['Others', 'Gross Total']
+        top_payers = top_payers.tolist() + ['Others', 'Gross Total']
         matrix_data_filtered = matrix_data.loc[top_suppliers, top_payers]
+
         matrix_data_filtered.to_excel(writer, sheet_name='Матрица поставщик-плательщик', index=True)
 
     with open('financial_report.xlsx', 'rb') as f:
@@ -145,7 +155,7 @@ def output_excel(df, week, report_type, start_date, end_date):
 def main():
     st.set_page_config(layout="wide")
 
-    df = load_data("https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx")
+    df = load_data("https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python%20copy.xlsx")
     st.write("Данные успешно загружены.")
     create_dashboard(df)
 
