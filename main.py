@@ -156,8 +156,7 @@ def create_dashboard(df):
     else:
         st.write("Нет данных для выбранных фильтров.")
 
-    if st.button("Скачать отчет в формате Excel```python
-"):
+    if st.button("Скачать отчет в формате Excel```python"):
         output_excel(filtered_data, selected_week, selected_report_type, start_date_str, end_date_str)
 
 
