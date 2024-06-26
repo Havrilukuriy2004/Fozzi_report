@@ -64,7 +64,7 @@ def create_dashboard(df):
 
     start_date, end_date = get_date_range_for_week(selected_week, 2024)
     start_date_str = start_date.strftime('%d.%m.%Y')
-    end_date_str = end_date.strftime('%d.%m.%Y')
+    end_date_str = end_date.strftime('%d.%м.%Y')
 
     # Заголовок и стили
     st.markdown(f"""
@@ -79,6 +79,11 @@ def create_dashboard(df):
         # Фильтруем данные для динамики до выбранной недели включительно
         dynamics_data = df[df['week'] <= selected_week].groupby('week')['sum'].sum().reset_index()
         st.line_chart(dynamics_data.set_index('week'))
+
+        # Создаем сводную таблицу для получателей
+        recipients_pivot = filtered_data.pivot_table(values='sum', index='recipient', columns='week', aggfunc='sum', fill_value=0)
+        recipients_pivot['Total'] = recipients_pivot.sum(axis=1)
+        st.table(recipients_pivot)
     else:
         st.write("Нет данных для выбранных фильтров.")
 
