@@ -63,7 +63,7 @@ def create_dashboard(df):
 
     st.header("Динамика платежей")
     if not filtered_data.empty:
-        dynamics_data = df[df['week'] <= selected_week].groupby('week')['sum'].sum().reset_index()
+        dynamics_data = df.groupby('week')['sum'].sum().reset_index()
         dynamics_data['sum'] = dynamics_data['sum'] / 1000  # Перевод в тыс. грн
 
         line_chart = alt.Chart(dynamics_data).mark_line(point=alt.OverlayMarkDef(), color='#FF4500').encode(
@@ -158,7 +158,7 @@ def create_dashboard(df):
 
         columns = ["Recipient"] + list(top_10_payers) + ["Total"]
         summary_df = pd.DataFrame(summary_data, columns=columns)
-        summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:] / 1000  # Перевод в тыс. грн
+        summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:].div(1000)  # Перевод в тыс. грн
 
         styled_df = summary_df.style.format({
             'Recipient': '{}',
@@ -210,7 +210,7 @@ def create_dashboard(df):
 
 def output_excel(df, week, report_type, start_date, end_date):
     with pd.ExcelWriter("financial_report.xlsx", engine="openpyxl") as writer:
-        dynamics_data = df[df["week"] <= week].groupby("week")["sum"].sum().reset_index()
+        dynamics_data = df.groupby("week")["sum"].sum().reset_index()
         dynamics_data["sum"] = dynamics_data["sum"] / 1000  # Перевод в тыс. грн
         dynamics_data.to_excel(writer, sheet_name="Динамика", index=False, float_format="%.2f")
 
