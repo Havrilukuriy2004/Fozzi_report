@@ -155,7 +155,7 @@ def output_excel(df, week, report_type, start_date, end_date):
 def main():
     st.set_page_config(layout="wide")
 
-    df = load_data("https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python%20copy.xlsx")
+    df = load_data("https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx")
     st.write("Данные успешно загружены.")
     create_dashboard(df)
 
