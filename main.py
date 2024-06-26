@@ -14,14 +14,20 @@ def load_data(url):
 
 # Filter data based on conditions
 def filter_data(df, week, report_type):
+    st.write("Columns in DataFrame:", df.columns.tolist())
+    
+    # Check if 'account' and 'partner' columns exist
+    if 'account' not in df.columns or 'partner' not in df.columns:
+        st.error("'account' or 'partner' columns not found in the data.")
+        return pd.DataFrame()  # Return an empty DataFrame
+    
     if report_type == 'со счетом':
         df_filtered = df[(df['week'] <= week) & (df['account'].str.lower() == 'да') & (df['partner'].str.lower() == 'да')]
     else:
         df_filtered = df[(df['week'] <= week) & (df['account'].str.lower() == 'нет') & (df['partner'].str.lower() == 'нет')]
         mask_keywords = ['банк', 'пумб', 'держ', 'обл', 'дтек', 'вдвс', 'мвс', 'дсу', 'дснс', 'дпс', 'митна', 'гук']
         df_filtered = df_filtered[~df_filtered['payer'].str.contains('|'.join(mask_keywords), case=False, na=False)]
-        df_filtered = df_filtered[~df_filtered['payer'].str.contains('район', case=False, na=False) | df_filtered[
-            'payer'].str.contains('крайон', case=False, na=False)]
+        df_filtered = df_filtered[~df_filtered['payer'].str.contains('район', case=False, na=False) | df_filtered['payer'].str.contains('крайон', case=False, na=False)]
     return df_filtered
 
 # Add "others" and gross total to top 10 lists
