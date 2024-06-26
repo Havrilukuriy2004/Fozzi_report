@@ -71,8 +71,7 @@ def create_dashboard(df):
             y=alt.Y('sum:Q', axis=alt.Axis(format=',.0f', title='Сумма (тыс. грн)')),
             tooltip=['week', alt.Tooltip('sum:Q', format=',.0f')]
         ).properties(
-            title='Динамика платежей по неделям'
-        ).configure_view(
+            title='Динамика платежей по неделям',
             background='#FFE4B5'
         ).configure_axis(
             grid=False
