@@ -1,13 +1,12 @@
 import streamlit as st
 import pandas as pd
-import openpyxl
 import requests
 from io import BytesIO
 import datetime
 import altair as alt
 
 
-@st.cache_data
+@st.cache
 def load_data(url):
     response = requests.get(url)
     df = pd.read_excel(BytesIO(response.content), engine='openpyxl')
@@ -32,15 +31,6 @@ def filter_data(df, week, report_type):
                               df_filtered['recipient'].str.contains('крайон', case=False, na=False)]
 
     return df_filtered
-
-
-def add_others_and_total(data, col_name):
-    top_data = data.nlargest(10, col_name)
-    others_sum = data[~data.index.isin(top_data.index)][col_name].sum()
-    top_data.loc['Others'] = others_sum
-    total_sum = data[col_name].sum()
-    top_data.loc['Gross Total'] = total_sum
-    return top_data
 
 
 def get_date_range_for_week(week_number, year):
@@ -149,17 +139,11 @@ def create_dashboard(df):
         column_names = ["Recipient"] + top_10_payers.tolist() + ["Total"]
 
         summary_df = pd.DataFrame(summary_data, columns=column_names)
-        summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:] / 1000  # Перевод в тыс. грн
+        summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:] / 1000  # Convert to thousands of UAH
 
-        st.table(summary_df.style.format("{:,.0f}").set_table_styles([
-            {
-                'selector': 'th',
-                'props': [('background-color', '#FFA500'), ('color', 'white')]
-            },
-            {
-                'selector': 'td',
-                'props': [('background-color', '#FFE4BB5')]
-            }]))
+        # Display the DataFrame without styling to check if it renders correctly
+        st.table(summary_df)
+
     else:
         st.write("Нет данных для выбранных фильтров.")
 
@@ -172,7 +156,8 @@ def create_dashboard(df):
     else:
         st.write("Нет данных для выбранных фильтров.")
 
-    if st.button("Скачать отчет в формате Excel"):
+    if st.button("Скачать отчет в формате Excel```python
+"):
         output_excel(filtered_data, selected_week, selected_report_type, start_date_str, end_date_str)
 
 
@@ -204,18 +189,13 @@ def output_excel(df, week, report_type, start_date, end_date):
     st.write("Отчет успешно создан: [скачать отчет](financial_report.xlsx)")
 
 
-def main():
-    st.set_page_config(layout="wide")
-    st.title("Финансовый отчет")
+st.set_page_config(layout="wide")
+st.title("Финансовый отчет")
 
-    excel_url = "https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx"
-    df = load_data(excel_url)
+excel_url = "https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx"
+df = load_data(excel_url)
 
-    if not df.empty:
-        create_dashboard(df)
-    else:
-        st.error("Не удалось загрузить данные. Проверьте URL и попробуйте снова.")
-
-
-if __name__ == "__main__":
-    main()
+if not df.empty:
+    create_dashboard(df)
+else:
+    st.error("Не удалось загрузить данные. Проверьте URL и попробуйте снова.")
