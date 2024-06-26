@@ -150,14 +150,14 @@ def create_dashboard(df):
         output_excel(filtered_data, selected_week, selected_report_type, start_date_str, end_date_str)
 
 def output_excel(df, week, report_type, start_date, end_date):
-    with pd.ExcelWriter('financial_report.xlsx') as writer:
+    with pd.ExcelWriter('financial_report.xlsx', engine='openpyxl') as writer:
         dynamics_data = df[df['week'] <= week].groupby('week')['sum'].sum().reset_index()
         dynamics_data['sum'] = dynamics_data['sum'] / 1000  # Перевод в тыс. грн
-        dynamics_data.to_excel(writer, sheet_name='Динамика', index=False)
+        dynamics_data.to_excel(writer, sheet_name='Динамика', index=False, float_format='%.2f')
 
         supplier_data = df.groupby(['week', 'payer'])['sum'].sum().reset_index()
         supplier_data['sum'] = supplier_data['sum'] / 1000  # Перевод в тыс. грн
-        supplier_data.to_excel(writer, sheet_name='Платежи по поставщикам', index=False)
+        supplier_data.to_excel(writer, sheet_name='Платежи по поставщикам', index=False, float_format='%.2f')
 
         matrix_data = df.pivot_table(values='sum', index='payer', columns='recipient', aggfunc='sum', fill_value=0)
         top_suppliers = matrix_data.sum(axis=1).nlargest(10).index
@@ -172,7 +172,7 @@ def output_excel(df, week, report_type, start_date, end_date):
         top_payers = top_payers.tolist() + ['Others', 'Gross Total']
         matrix_data_filtered = matrix_data.loc[top_suppliers, top_payers] / 1000  # Перевод в тыс. грн
 
-        matrix_data_filtered.to_excel(writer, sheet_name='Матрица', index=True)
+        matrix_data_filtered.to_excel(writer, sheet_name='Матрица', index=True, float_format='%.2f')
 
     st.write("Отчет успешно создан: [скачать отчет](financial_report.xlsx)")
 
