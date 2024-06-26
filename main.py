@@ -53,7 +53,7 @@ def create_dashboard(df):
 
     start_date, end_date = get_date_range_for_week(selected_week, 2024)
     start_date_str = start_date.strftime('%d.%m.%Y')
-    end_date_str = end_date.strftime('%d.%м.%Y')
+    end_date_str = end_date.strftime('%d.%m.%Y')
 
     st.markdown(f"""
         <div style="background-color:#FFA500;padding:10px;border-radius:10px">
@@ -89,13 +89,13 @@ def create_dashboard(df):
         other_totals['Total'] = other_totals.sum() / 1000  # Перевод в тыс. грн
         recipients_pivot.loc['Others'] = other_totals
 
-        st.table(recipients_pivot)
+        st.table(recipients_pivot.style.format("{:,.0f}"))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
     st.header("Топ получателей")
     if not filtered_data.empty:
-        top_recipients = filtered_data.groupby(['recipient_code', 'recipient'])['sum'].sum().nlargest(10).reset_index()
+        top_recipients = filtered_data.groupby(['code', 'recipient'])['sum'].sum().nlargest(10).reset_index()
         others_sum = filtered_data[~filtered_data['recipient'].isin(top_recipients['recipient'])]['sum'].sum() / 1000  # Перевод в тыс. грн
         total_sum = filtered_data['sum'].sum() / 1000  # Перевод в тыс. грн
 
@@ -103,7 +103,7 @@ def create_dashboard(df):
         top_recipients.loc[len(top_recipients.index)] = ['Другие', 'Другие', others_sum]
         top_recipients.loc[len(top_recipients.index)] = ['Всего', 'Всего', total_sum]
 
-        st.table(top_recipients.rename(columns={'recipient_code': 'Код получателя', 'recipient': 'Получатель', 'sum': 'Сума за ную неделю'}).style.format({'Сума за ную неделю': '{:,.0f}'}))
+        st.table(top_recipients.rename(columns={'code': 'Код получателя', 'recipient': 'Получатель', 'sum': 'Сума за ную неделю'}).style.format({'Сума за ную неделю': '{:,.0f}'}))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
@@ -132,7 +132,7 @@ def create_dashboard(df):
         try:
             summary_df = pd.DataFrame(summary_data, columns=["Recipient"] + top_10_payers.tolist() + ["Total"])
             summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:] / 1000  # Перевод в тыс. грн
-            st.table(summary_df.style.format({col: '{:,.0f}' for col in summary_df.columns[1:]}))
+            st.table(summary_df.style.format("{:,.0f}"))
         except ValueError as e:
             st.error(f"Ошибка при создании DataFrame: {e}")
     else:
@@ -160,6 +160,9 @@ def output_excel(df, week, report_type, start_date, end_date):
         supplier_data.to_excel(writer, sheet_name='Платежи по поставщикам', index=False)
 
         matrix_data = df.pivot_table(values='sum', index='payer', columns='recipient', aggfunc='sum', fill_value=0)
+        top_suppliers = matrix_data.sum(axis=1).nlargest(10).index
+        top_payers = matrix_data.sum(axis=0).nlargest(10).index
+
         matrix_data.loc['Others'] = matrix_data.loc[~matrix_data.index.isin(top_suppliers)].sum()
         matrix_data.loc['Gross Total'] = matrix_data.sum()
         matrix_data['Others'] = matrix_data[~matrix_data.columns.isin(top_payers)].sum(axis=1)
@@ -167,14 +170,13 @@ def output_excel(df, week, report_type, start_date, end_date):
 
         top_suppliers = top_suppliers.tolist() + ['Others', 'Gross Total']
         top_payers = top_payers.tolist() + ['Others', 'Gross Total']
-        matrix_data_filtered = matrix_data.loc[top_suppliers, top_payers]
+        matrix_data_filtered = matrix_data.loc[top_suppliers, top_payers] / 1000  # Перевод в тыс. грн
 
         matrix_data_filtered.to_excel(writer, sheet_name='Матрица', index=True)
 
     st.write("Отчет успешно создан: [скачать отчет](financial_report.xlsx)")
 
 st.set_page_config(layout="wide")
-st.title("Финансовый отчет")
 
 excel_url = "https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx"
 df = load_data(excel_url)
