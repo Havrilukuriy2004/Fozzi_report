@@ -178,7 +178,7 @@ st.set_page_config(layout="wide")
 st.title("Финансовый отчет")
 
 # Укажите URL вашего Excel файла
-excel_url = "https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx"
+excel_url = "URL вашего Excel файла"
 df = load_data(excel_url)
 
 if not df.empty:
