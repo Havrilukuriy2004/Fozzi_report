@@ -20,9 +20,9 @@ def filter_data(df, week, report_type):
 
     # Фильтрация по типу отчета
     if report_type == 'со счетом':
-        df_filtered = df[(df['week'] == week) & (df['account'].str.lower() == 'да') & (df['partner'].str.lower() == 'да')]
+        df_filtered = df[(df['week'] <= week) & (df['account'].str.lower() == 'да') & (df['partner'].str.lower() == 'да')]
     else:
-        df_filtered = df[(df['week'] == week) & (df['account'].str.lower() == 'нет') & (df['partner'].str.lower() == 'нет')]
+        df_filtered = df[(df['week'] <= week) & (df['account'].str.lower() == 'нет') & (df['partner'].str.lower() == 'нет')]
 
     # Удаление строк, где 'recipient' содержит любые из mask_keywords
     mask_keywords = ['банк', 'пумб', 'держ', 'обл', 'дтек', 'вдвс', 'мвс', 'дсу', 'дснс', 'дпс', 'митна', 'гук']
@@ -81,8 +81,19 @@ def create_dashboard(df):
         st.line_chart(dynamics_data.set_index('week'))
 
         # Создаем сводную таблицу для получателей
+        recipient_totals = filtered_data.groupby("recipient")["sum"].sum()
+        top_10_recipients = recipient_totals.nlargest(10).index
+
         recipients_pivot = filtered_data.pivot_table(values='sum', index='recipient', columns='week', aggfunc='sum', fill_value=0)
+        recipients_pivot = recipients_pivot.loc[top_10_recipients]
         recipients_pivot['Total'] = recipients_pivot.sum(axis=1)
+
+        # Добавляем строку для "Прочих"
+        other_data = filtered_data[~filtered_data["recipient"].isin(top_10_recipients)]
+        other_totals = other_data.groupby('week')['sum'].sum()
+        other_totals['Total'] = other_totals.sum()
+        recipients_pivot.loc['Others'] = other_totals
+
         st.table(recipients_pivot)
     else:
         st.write("Нет данных для выбранных фильтров.")
