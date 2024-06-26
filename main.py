@@ -121,7 +121,7 @@ def create_dashboard(df):
     else:
         st.write("Нет данных для выбранных фильтров.")
 
-    st.header("Матрица Поставщик-Плательщик")
+st.header("Матрица Поставщик-Плательщик")
     if not filtered_data.empty:
         recipient_totals = filtered_data.groupby("recipient")["sum"].sum().reset_index()
         top_10_recipients = recipient_totals.sort_values(by="sum", ascending=False).head(10)["recipient"]
@@ -132,26 +132,32 @@ def create_dashboard(df):
         summary_data = []
         for recipient in top_10_recipients:
             recipient_data = filtered_data[filtered_data["recipient"] == recipient]
-            row = [recipient] + [recipient_data[recipient_data["payer"] == payer]["sum"].sum() for payer in
-                                 top_10_payers] + [recipient_data["sum"].sum()]
+            row = [recipient] + [recipient_data[recipient_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [recipient_data["sum"].sum()]
             summary_data.append(row)
 
         other_data = filtered_data[~filtered_data["recipient"].isin(top_10_recipients)]
-        other_row = ["Others"] + [other_data[other_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [
-            other_data["sum"].sum()]
+        other_row = ["Others"] + [other_data[other_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [other_data["sum"].sum()]
 
-        totals_row = ["Total"] + [filtered_data[filtered_data["payer"] == payer]["sum"].sum() for payer in
-                                  top_10_payers] + [filtered_data["sum"].sum()]
+        totals_row = ["Total"] + [filtered_data[filtered_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [filtered_data["sum"].sum()]
 
         summary_data.append(other_row)
         summary_data.append(totals_row)
 
-        try:
-            summary_df = pd.DataFrame(summary_data, columns=["Recipient"] + top_10_payers.tolist() + ["Total"])
-            summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:] / 1000  # Перевод в тыс. грн
-            st.table(summary_df.style.format("{:,.0f}"))
-        except ValueError as e:
-            st.error(f"Ошибка при создании DataFrame: {e}")
+        column_names = ["Recipient"] + top_10_payers.tolist() + ["Total"]
+
+        summary_df = pd.DataFrame(summary_data, columns=column_names)
+        summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:] / 1000  # Перевод в тыс. грн
+
+        st.table(summary_df.style.format("{:,.0f}").set_table_styles([
+            {
+                'selector': 'th',
+                'props': [('background-color', '#FFA500'), ('color', 'white')]
+            },
+            {
+                'selector': 'td',
+                'props': [('background-color', '#FFE4B5')]
+            }
+        ]))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
