@@ -48,12 +48,11 @@ def create_dashboard(df):
     selected_week = st.sidebar.selectbox("Выберите неделю", sorted(df['week'].unique()))
     selected_report_type = st.sidebar.radio("Выберите тип отчета", ['со счетом', 'без счета'])
 
-
     filtered_data = filter_data(df, selected_week, selected_report_type)
 
     start_date, end_date = get_date_range_for_week(selected_week, 2024)
     start_date_str = start_date.strftime('%d.%m.%Y')
-    end_date_str = end_date.strftime('%d.%m.%Y')
+    end_date_str = end_date.strftime('%d.%м.%Y')
 
     st.markdown(f"""
         <div style="background-color:#FFA500;padding:10px;border-radius:10px">
@@ -89,6 +88,9 @@ def create_dashboard(df):
         other_totals['Total'] = other_totals.sum() / 1000  # Перевод в тыс. грн
         recipients_pivot.loc['Others'] = other_totals
 
+        recipients_pivot = recipients_pivot.apply(pd.to_numeric, errors='coerce')  # Convert all values to numeric, setting errors to NaN
+        recipients_pivot = recipients_pivot.fillna(0)  # Fill NaN with 0
+
         st.table(recipients_pivot.style.format("{:,.0f}"))
     else:
         st.write("Нет данных для выбранных фильтров.")
@@ -102,6 +104,9 @@ def create_dashboard(df):
         top_recipients['sum'] = top_recipients['sum'] / 1000  # Перевод в тыс. грн
         top_recipients.loc[len(top_recipients.index)] = ['Другие', 'Другие', others_sum]
         top_recipients.loc[len(top_recipients.index)] = ['Всего', 'Всего', total_sum]
+
+        top_recipients = top_recipients.apply(pd.to_numeric, errors='coerce')  # Convert all values to numeric, setting errors to NaN
+        top_recipients = top_recipients.fillna(0)  # Fill NaN with 0
 
         st.table(top_recipients.rename(columns={'code': 'Код получателя', 'recipient': 'Получатель', 'sum': 'Сума за ную неделю'}).style.format({'Сума за ную неделю': '{:,.0f}'}))
     else:
@@ -142,6 +147,8 @@ def create_dashboard(df):
     if not filtered_data.empty:
         supplier_totals = filtered_data.groupby("payer")["sum"].sum().nlargest(10).reset_index()
         supplier_totals['sum'] = supplier_totals['sum'] / 1000  # Перевод в тыс. грн
+        supplier_totals = supplier_totals.apply(pd.to_numeric, errors='coerce')  # Convert all values to numeric, setting errors to NaN
+        supplier_totals = supplier_totals.fillna(0)  # Fill NaN with 0
         st.table(supplier_totals.rename(columns={'payer': 'Плательщик', 'sum': 'Сума'}).style.format({'Сума': '{:,.0f}'}))
     else:
         st.write("Нет данных для выбранных фильтров.")
