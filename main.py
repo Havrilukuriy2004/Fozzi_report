@@ -64,7 +64,7 @@ def create_dashboard(df):
 
     start_date, end_date = get_date_range_for_week(selected_week, 2024)
     start_date_str = start_date.strftime('%d.%m.%Y')
-    end_date_str = end_date.strftime('%d.%м.%Y')
+    end_date_str = end_date.strftime('%d.%m.%Y')
 
     # Заголовок и стили
     st.markdown(f"""
@@ -108,30 +108,23 @@ def create_dashboard(df):
 
         for recipient in top_10_recipients:
             recipient_data = filtered_data[filtered_data["recipient"] == recipient]
-            row = [recipient] + [recipient_data[recipient_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [recipient_data[~recipient_data["payer"].isin(top_10_payers)]["sum"].sum()]
+            row = [recipient] + [recipient_data[recipient_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [recipient_data["sum"].sum()]
             summary_data.append(row)
 
         # Добавляем строку для "Прочих"
         other_data = filtered_data[~filtered_data["recipient"].isin(top_10_recipients)]
-        other_row = ["Others"] + [other_data[other_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [other_data[~other_data["payer"].isin(top_10_payers)]["sum"].sum()]
+        other_row = ["Others"] + [other_data[other_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [other_data["sum"].sum()]
 
         # Добавляем итоги
-        totals_row = ["Total"] + [filtered_data[filtered_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [filtered_data[~filtered_data["payer"].isin(top_10_payers)]["sum"].sum()]
+        totals_row = ["Total"] + [filtered_data[filtered_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [filtered_data["sum"].sum()]
 
         # Объединяем все строки
         summary_data.append(other_row)
         summary_data.append(totals_row)
 
-        # Debug: Print lengths of data and columns
-        print("Summary data length:", len(summary_data))
-        for row in summary_data:
-            print("Row length:", len(row), "Row content:", row)
-        
-        print("Column length:", len(["Recipient"] + top_10_payers.tolist() + ["Others", "Total"]))
-
         # Создаем DataFrame для сводной таблицы
         try:
-            summary_df = pd.DataFrame(summary_data, columns=["Recipient"] + top_10_payers.tolist() + ["Others", "Total"])
+            summary_df = pd.DataFrame(summary_data, columns=["Recipient"] + top_10_payers.tolist() + ["Total"])
             st.table(summary_df)
         except ValueError as e:
             st.error(f"Ошибка при создании DataFrame: {e}")
