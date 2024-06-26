@@ -18,9 +18,9 @@ def filter_data(df, week, report_type):
         return pd.DataFrame()
     
     if report_type == 'со счетом':
-        df_filtered = df[(df['week'] <= week) & (df['account'].str.lower() == 'да') & (df['partner'].str.lower() == 'да')]
+        df_filtered = df[(df['week'] == week) & (df['account'].str.lower() == 'да') & (df['partner'].str.lower() == 'да')]
     else:
-        df_filtered = df[(df['week'] <= week) & (df['account'].str.lower() == 'нет') & (df['partner'].str.lower() == 'нет')]
+        df_filtered = df[(df['week'] == week) & (df['account'].str.lower() == 'нет') & (df['partner'].str.lower() == 'нет')]
 
     mask_keywords = ['банк', 'пумб', 'держ', 'обл', 'дтек', 'вдвс', 'мвс', 'дсу', 'дснс', 'дпс', 'митна', 'гук']
     df_filtered = df_filtered[~df_filtered['recipient'].str.contains('|'.join(mask_keywords), case=False, na=False)]
@@ -52,7 +52,7 @@ def create_dashboard(df):
 
     start_date, end_date = get_date_range_for_week(selected_week, 2024)
     start_date_str = start_date.strftime('%d.%m.%Y')
-    end_date_str = end_date.strftime('%d.%м.%Y')
+    end_date_str = end_date.strftime('%d.%m.%Y')
 
     st.markdown(f"""
         <div style="background-color:#FFA500;padding:10px;border-radius:10px">
@@ -66,12 +66,18 @@ def create_dashboard(df):
         dynamics_data = df[df['week'] <= selected_week].groupby('week')['sum'].sum().reset_index()
         dynamics_data['sum'] = dynamics_data['sum'] / 1000  # Перевод в тыс. грн
 
-        line_chart = alt.Chart(dynamics_data).mark_line(point=alt.OverlayMarkDef()).encode(
+        line_chart = alt.Chart(dynamics_data).mark_line(point=alt.OverlayMarkDef(), color='#FF4500').encode(
             x='week:O',
             y=alt.Y('sum:Q', axis=alt.Axis(format=',.0f', title='Сумма (тыс. грн)')),
             tooltip=['week', alt.Tooltip('sum:Q', format=',.0f')]
         ).properties(
             title='Динамика платежей по неделям'
+        ).configure_view(
+            background='#FFE4B5'
+        ).configure_axis(
+            grid=False
+        ).configure_title(
+            color='#FF4500'
         ).interactive()
 
         st.altair_chart(line_chart, use_container_width=True)
@@ -91,7 +97,16 @@ def create_dashboard(df):
         recipients_pivot = recipients_pivot.apply(pd.to_numeric, errors='coerce')  # Convert all values to numeric, setting errors to NaN
         recipients_pivot = recipients_pivot.fillna(0)  # Fill NaN with 0
 
-        st.table(recipients_pivot.style.format("{:,.0f}"))
+        st.table(recipients_pivot.style.format("{:,.0f}").set_table_styles([
+            {
+                'selector': 'th',
+                'props': [('background-color', '#FFA500'), ('color', 'white')]
+            },
+            {
+                'selector': 'td',
+                'props': [('background-color', '#FFE4B5')]
+            }
+        ]))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
@@ -108,7 +123,16 @@ def create_dashboard(df):
         top_recipients = top_recipients.apply(pd.to_numeric, errors='coerce')  # Convert all values to numeric, setting errors to NaN
         top_recipients = top_recipients.fillna(0)  # Fill NaN with 0
 
-        st.table(top_recipients.rename(columns={'code': 'Код получателя', 'recipient': 'Получатель', 'sum': 'Сума за ную неделю'}).style.format({'Сума за ную неделю': '{:,.0f}'}))
+        st.table(top_recipients.rename(columns={'code': 'Код получателя', 'recipient': 'Получатель', 'sum': 'Сума (тыс. грн)'}).style.format({'Сума (тыс. грн)': '{:,.0f}'}).set_table_styles([
+            {
+                'selector': 'th',
+                'props': [('background-color', '#FFA500'), ('color', 'white')]
+            },
+            {
+                'selector': 'td',
+                'props': [('background-color', '#FFE4B5')]
+            }
+        ]))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
@@ -134,29 +158,52 @@ def create_dashboard(df):
         summary_data.append(other_row)
         summary_data.append(totals_row)
 
-        try:
-            summary_df = pd.DataFrame(summary_data, columns=["Recipient"] + top_10_payers.tolist() + ["Total"])
-            summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:] / 1000  # Перевод в тыс. грн
-            
-            # Formatting
-            styled_df = summary_df.style.format({
-                'Recipient': '{}',
-                **{col: '{:,.0f}' for col in summary_df.columns[1:]}
-            })
+        columns = ["Recipient"] + list(top_10_payers) + ["Total"]
+        summary_df = pd.DataFrame(summary_data, columns=columns)
+        summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:] / 1000  # Перевод в тыс. грн
 
-            st.table(styled_df)
-        except ValueError as e:
-            st.error(f"Ошибка при создании DataFrame: {e}")
+        styled_df = summary_df.style.format({
+            'Recipient': '{}',
+            **{payer: '{:,.0f}' for payer in top_10_payers},
+            'Total': '{:,.0f}'
+        }).set_table_styles([
+            {
+                'selector': 'th',
+                'props': [('background-color', '#FFA500'), ('color', 'white')]
+            },
+            {
+                'selector': 'td',
+                'props': [('background-color', '#FFE4B5')]
+            }
+        ])
+
+        st.table(styled_df)
     else:
         st.write("Нет данных для выбранных фильтров.")
 
-    st.header("Топ поставщиков")
+    st.header("Топ плательщиков")
     if not filtered_data.empty:
         supplier_totals = filtered_data.groupby("payer")["sum"].sum().nlargest(10).reset_index()
-        supplier_totals['sum'] = supplier_totals['sum'] / 1000  # Перевод в тыс. грн
+        others_sum = filtered_data[~filtered_data["payer"].isin(supplier_totals["payer"])]["sum"].sum() / 1000  # Перевод в тыс. грн
+        total_sum = filtered_data["sum"].sum() / 1000  # Перевод в тыс. грн
+
+        supplier_totals["sum"] = supplier_totals["sum"] / 1000  # Перевод в тыс. грн
+        supplier_totals.loc[len(supplier_totals.index)] = ["Другие", others_sum]
+        supplier_totals.loc[len(supplier_totals.index)] = ["Всего", total_sum]
+
         supplier_totals = supplier_totals.apply(pd.to_numeric, errors='coerce')  # Convert all values to numeric, setting errors to NaN
         supplier_totals = supplier_totals.fillna(0)  # Fill NaN with 0
-        st.table(supplier_totals.rename(columns={'payer': 'Плательщик', 'sum': 'Сума'}).style.format({'Сума': '{:,.0f}'}))
+
+        st.table(supplier_totals.rename(columns={"payer": "Плательщик", "sum": "Сума (тыс. грн)"}).style.format({"Сума (тыс. грн)": "{:,.0f}"}).set_table_styles([
+            {
+                'selector': 'th',
+                'props': [('background-color', '#FFA500'), ('color', 'white')]
+            },
+            {
+                'selector': 'td',
+                'props': [('background-color', '#FFE4B5')]
+            }
+        ]))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
@@ -164,29 +211,29 @@ def create_dashboard(df):
         output_excel(filtered_data, selected_week, selected_report_type, start_date_str, end_date_str)
 
 def output_excel(df, week, report_type, start_date, end_date):
-    with pd.ExcelWriter('financial_report.xlsx', engine='openpyxl') as writer:
-        dynamics_data = df[df['week'] <= week].groupby('week')['sum'].sum().reset_index()
-        dynamics_data['sum'] = dynamics_data['sum'] / 1000  # Перевод в тыс. грн
-        dynamics_data.to_excel(writer, sheet_name='Динамика', index=False, float_format='%.2f')
+    with pd.ExcelWriter("financial_report.xlsx", engine="openpyxl") as writer:
+        dynamics_data = df[df["week"] <= week].groupby("week")["sum"].sum().reset_index()
+        dynamics_data["sum"] = dynamics_data["sum"] / 1000  # Перевод в тыс. грн
+        dynamics_data.to_excel(writer, sheet_name="Динамика", index=False, float_format="%.2f")
 
-        supplier_data = df.groupby(['week', 'payer'])['sum'].sum().reset_index()
-        supplier_data['sum'] = supplier_data['sum'] / 1000  # Перевод в тыс. грн
-        supplier_data.to_excel(writer, sheet_name='Платежи по поставщикам', index=False, float_format='%.2f')
+        supplier_data = df.groupby(["week", "payer"])["sum"].sum().reset_index()
+        supplier_data["sum"] = supplier_data["sum"] / 1000  # Перевод в тыс. грн
+        supplier_data.to_excel(writer, sheet_name="Платежи по поставщикам", index=False, float_format="%.2f")
 
-        matrix_data = df.pivot_table(values='sum', index='payer', columns='recipient', aggfunc='sum', fill_value=0)
+        matrix_data = df.pivot_table(values="sum", index="payer", columns="recipient", aggfunc="sum", fill_value=0)
         top_suppliers = matrix_data.sum(axis=1).nlargest(10).index
         top_payers = matrix_data.sum(axis=0).nlargest(10).index
 
-        matrix_data.loc['Others'] = matrix_data.loc[~matrix_data.index.isin(top_suppliers)].sum()
-        matrix_data.loc['Gross Total'] = matrix_data.sum()
-        matrix_data['Others'] = matrix_data[~matrix_data.columns.isin(top_payers)].sum(axis=1)
-        matrix_data['Gross Total'] = matrix_data.sum(axis=1)
+        matrix_data.loc["Others"] = matrix_data.loc[~matrix_data.index.isin(top_suppliers)].sum()
+        matrix_data.loc["Gross Total"] = matrix_data.sum()
+        matrix_data["Others"] = matrix_data[~matrix_data.columns.isin(top_payers)].sum(axis=1)
+        matrix_data["Gross Total"] = matrix_data.sum(axis=1)
 
-        top_suppliers = top_suppliers.tolist() + ['Others', 'Gross Total']
-        top_payers = top_payers.tolist() + ['Others', 'Gross Total']
+        top_suppliers = top_suppliers.tolist() + ["Others", "Gross Total"]
+        top_payers = top_payers.tolist() + ["Others", "Gross Total"]
         matrix_data_filtered = matrix_data.loc[top_suppliers, top_payers] / 1000  # Перевод в тыс. грн
 
-        matrix_data_filtered.to_excel(writer, sheet_name='Матрица', index=True, float_format='%.2f')
+        matrix_data_filtered.to_excel(writer, sheet_name="Матрица", index=True, float_format="%.2f")
 
     st.write("Отчет успешно создан: [скачать отчет](financial_report.xlsx)")
 
