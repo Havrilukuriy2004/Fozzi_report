@@ -69,7 +69,8 @@ def create_dashboard(df):
 
     st.header("Динамика платежей")
     if not filtered_data.empty:
-        dynamics_data = df.groupby('week')['sum'].sum().reset_index()
+        # Фильтруем данные для динамики до выбранной недели включительно
+        dynamics_data = df[df['week'] <= selected_week].groupby('week')['sum'].sum().reset_index()
         st.line_chart(dynamics_data.set_index('week'))
     else:
         st.write("Нет данных для выбранных фильтров.")
@@ -83,24 +84,41 @@ def create_dashboard(df):
 
     st.header("Матрица Поставщик-Плательщик")
     if not filtered_data.empty:
-        matrix_data = filtered_data.pivot_table(values='sum', index='payer', columns='recipient', aggfunc='sum', fill_value=0)
+        # Создаем DataFrame для текущей недели
+        week_data = df[df["week"] == selected_week]
 
-        supplier_sums = matrix_data.sum(axis=1).sort_values(ascending=False)
-        payer_sums = matrix_data.sum(axis=0).sort_values(ascending=False)
+        # Группируем по получателям и суммируем суммы
+        recipient_totals = week_data.groupby("recipient")["sum"].sum().reset_index()
 
-        top_suppliers = add_others_and_total(supplier_sums.reset_index(), 0).index
-        top_payers = add_others_and_total(payer_sums.reset_index(), 0).index
+        # Выбираем топ-10 получателей
+        top_10_recipients = recipient_totals.sort_values(by="sum", ascending=False).head(10)["recipient"]
 
-        matrix_data.loc['Others'] = matrix_data.loc[~matrix_data.index.isin(top_suppliers)].sum()
-        matrix_data.loc['Gross Total'] = matrix_data.sum()
-        matrix_data['Others'] = matrix_data[~matrix_data.columns.isin(top_payers)].sum(axis=1)
-        matrix_data['Gross Total'] = matrix_data.sum(axis=1)
+        # Сумма всех получателей
+        total_sum = recipient_totals["sum"].sum()
 
-        top_suppliers = top_suppliers.tolist() + ['Others', 'Gross Total']
-        top_payers = top_payers.tolist() + ['Others', 'Gross Total']
-        matrix_data_filtered = matrix_data.loc[top_suppliers, top_payers]
+        # Создаем сводную таблицу
+        summary_data = []
 
-        st.table(matrix_data_filtered)
+        for recipient in top_10_recipients:
+            recipient_data = week_data[week_data["recipient"] == recipient]
+            row = [recipient] + [recipient_data[recipient_data["payer"] == payer]["sum"].sum() for payer in df["payer"].unique()] + [recipient_data["sum"].sum()]
+            summary_data.append(row)
+
+        # Добавляем строку для "Прочих"
+        other_data = week_data[~week_data["recipient"].isin(top_10_recipients)]
+        other_row = ["Others"] + [other_data[other_data["payer"] == payer]["sum"].sum() for payer in df["payer"].unique()] + [other_data["sum"].sum()]
+
+        # Добавляем итоги
+        totals_row = ["Total"] + [week_data[week_data["payer"] == payer]["sum"].sum() for payer in df["payer"].unique()] + [total_sum]
+
+        # Объединяем все строки
+        summary_data.append(other_row)
+        summary_data.append(totals_row)
+
+        # Создаем DataFrame для сводной таблицы
+        summary_df = pd.DataFrame(summary_data, columns=["Recipient"] + df["payer"].unique().tolist() + ["Total"])
+        
+        st.table(summary_df)
     else:
         st.write("Нет данных для выбранных фильтров.")
 
@@ -116,7 +134,7 @@ def create_dashboard(df):
 
 def output_excel(df, week, report_type, start_date, end_date):
     with pd.ExcelWriter('financial_report.xlsx') as writer:
-        dynamics_data = df.groupby('week')['sum'].sum().reset_index()
+        dynamics_data = df[df['week'] <= week].groupby('week')['sum'].sum().reset_index()
         dynamics_data.to_excel(writer, sheet_name='Динамика', index=False)
 
         supplier_data = df.groupby(['week', 'payer'])['sum'].sum().reset_index()
@@ -144,7 +162,7 @@ def output_excel(df, week, report_type, start_date, end_date):
 def main():
     st.set_page_config(layout="wide")
 
-    df = load_data("https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx")
+    df = load_data("https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python%20copy.xlsx")
     st.write("Данные успешно загружены.")
     create_dashboard(df)
 
