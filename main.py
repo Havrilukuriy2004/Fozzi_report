@@ -52,7 +52,7 @@ def create_dashboard(df):
 
     start_date, end_date = get_date_range_for_week(selected_week, 2024)
     start_date_str = start_date.strftime('%d.%m.%Y')
-    end_date_str = end_date.strftime('%d.%m.%Y')
+    end_date_str = end_date.strftime('%d.%м.%Y')
 
     st.markdown(f"""
         <div style="background-color:#FFA500;padding:10px;border-radius:10px">
@@ -63,7 +63,7 @@ def create_dashboard(df):
 
     st.header("Динамика платежей")
     if not filtered_data.empty:
-        dynamics_data = df.groupby('week')['sum'].sum().reset_index()
+        dynamics_data = df[df['week'] <= selected_week].groupby('week')['sum'].sum().reset_index()
         dynamics_data['sum'] = dynamics_data['sum'] / 1000  # Перевод в тыс. грн
 
         line_chart = alt.Chart(dynamics_data).mark_line(point=alt.OverlayMarkDef(), color='#FF4500').encode(
@@ -89,7 +89,7 @@ def create_dashboard(df):
 
         other_data = filtered_data[~filtered_data["recipient"].isin(top_10_recipients)]
         other_totals = other_data.groupby('week')['sum'].sum()
-        other_totals.loc['Total'] = other_totals.sum() / 1000  # Перевод в тыс. грн
+        other_totals['Total'] = other_totals.sum() / 1000  # Перевод в тыс. грн
         recipients_pivot.loc['Others'] = other_totals
 
         recipients_pivot = recipients_pivot.apply(pd.to_numeric, errors='coerce')  # Преобразование всех значений в числовые, ошибки в NaN
@@ -158,10 +158,10 @@ def create_dashboard(df):
 
         column_names = ["Recipient"] + top_10_payers.tolist() + ["Total"]
 
-        matrix_df = pd.DataFrame(summary_data, columns=column_names)
-        matrix_df.iloc[:, 1:] = matrix_df.iloc[:, 1:] / 1000  # Перевод в тыс. грн
+        summary_df = pd.DataFrame(summary_data, columns=column_names)
+        summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:] / 1000  # Перевод в тыс. грн
 
-        st.table(matrix_df.style.format("{:,.0f}").set_table_styles([
+        st.table(summary_df.style.format("{:,.0f}").set_table_styles([
             {
                 'selector': 'th',
                 'props': [('background-color', '#FFA500'), ('color', 'white')]
@@ -173,6 +173,7 @@ def create_dashboard(df):
         ]))
     else:
         st.write("Нет данных для выбранных фильтров.")
+
     st.header("Топ плательщики")
     if not filtered_data.empty:
         top_payers = filtered_data.groupby(['code_payer', 'payer'])['sum'].sum().nlargest(10).reset_index()
@@ -201,10 +202,5 @@ def create_dashboard(df):
 
 if __name__ == "__main__":
     st.set_page_config(page_title="Платежи на крупных контрагентов ФОЗЗИ", layout="wide")
-    data_url = st.text_input("https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx")
-    
-    if data_url:
-        df = load_data(data_url)
-        create_dashboard(df)
-    else:
-        st.write("Пожалуйста, введите URL файла с данными.")
+    df = load_data('https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx')  # Замените 'path_to_data_file.xlsx' на реальный путь к файлу данных
+    create_dashboard(df)
