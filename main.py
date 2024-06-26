@@ -47,11 +47,8 @@ def create_dashboard(df):
     selected_week = st.sidebar.selectbox("Выберите неделю", sorted(df['week'].unique()))
     selected_report_type = st.sidebar.radio("Выберите тип отчета", ['со счетом', 'без счета'])
 
-    st.write(f"Выбранная неделя: {selected_week}")
-    st.write(f"Выбранный тип отчета: {selected_report_type}")
 
     filtered_data = filter_data(df, selected_week, selected_report_type)
-    st.write(f"Фильтрованные данные: {filtered_data.shape}")
 
     start_date, end_date = get_date_range_for_week(selected_week, 2024)
     start_date_str = start_date.strftime('%d.%m.%Y')
