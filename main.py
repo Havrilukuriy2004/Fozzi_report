@@ -121,57 +121,61 @@ def create_dashboard(df):
     else:
         st.write("Нет данных для выбранных фильтров.")
 
+
 st.header("Матрица Поставщик-Плательщик")
 if not filtered_data.empty:
-        recipient_totals = filtered_data.groupby("recipient")["sum"].sum().reset_index()
-        top_10_recipients = recipient_totals.sort_values(by="sum", ascending=False).head(10)["recipient"]
+    recipient_totals = filtered_data.groupby("recipient")["sum"].sum().reset_index()
+    top_10_recipients = recipient_totals.sort_values(by="sum", ascending=False).head(10)["recipient"]
 
-        payer_totals = filtered_data.groupby("payer")["sum"].sum().reset_index()
-        top_10_payers = payer_totals.sort_values(by="sum", ascending=False).head(10)["payer"]
+    payer_totals = filtered_data.groupby("payer")["sum"].sum().reset_index()
+    top_10_payers = payer_totals.sort_values(by="sum", ascending=False).head(10)["payer"]
 
-        summary_data = []
-    for recipient in top_10_recipients:
-            recipient_data = filtered_data[filtered_data["recipient"] == recipient]
-            row = [recipient] + [recipient_data[recipient_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [recipient_data["sum"].sum()]
-            summary_data.append(row)
+    summary_data = []
+for recipient in top_10_recipients:
+    recipient_data = filtered_data[filtered_data["recipient"] == recipient]
+    row = [recipient] + [recipient_data[recipient_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [
+        recipient_data["sum"].sum()]
+    summary_data.append(row)
 
-        other_data = filtered_data[~filtered_data["recipient"].isin(top_10_recipients)]
-        other_row = ["Others"] + [other_data[other_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [other_data["sum"].sum()]
+other_data = filtered_data[~filtered_data["recipient"].isin(top_10_recipients)]
+other_row = ["Others"] + [other_data[other_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [
+    other_data["sum"].sum()]
 
-        totals_row = ["Total"] + [filtered_data[filtered_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [filtered_data["sum"].sum()]
+totals_row = ["Total"] + [filtered_data[filtered_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [
+    filtered_data["sum"].sum()]
 
-        summary_data.append(other_row)
-        summary_data.append(totals_row)
+summary_data.append(other_row)
+summary_data.append(totals_row)
 
-        column_names = ["Recipient"] + top_10_payers.tolist() + ["Total"]
+column_names = ["Recipient"] + top_10_payers.tolist() + ["Total"]
 
-        summary_df = pd.DataFrame(summary_data, columns=column_names)
-        summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:] / 1000  # Перевод в тыс. грн
+summary_df = pd.DataFrame(summary_data, columns=column_names)
+summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:] / 1000  # Перевод в тыс. грн
 
-        st.table(summary_df.style.format("{:,.0f}").set_table_styles([
-            {
-                'selector': 'th',
-                'props': [('background-color', '#FFA500'), ('color', 'white')]
-            },
-            {
-                'selector': 'td',
-                'props': [('background-color', '#FFE4B5')]
-            }
-        ]))
-    else:
-        st.write("Нет данных для выбранных фильтров.")
+st.table(summary_df.style.format("{:,.0f}").set_table_styles([
+    {
+        'selector': 'th',
+        'props': [('background-color', '#FFA500'), ('color', 'white')]
+    },
+    {
+        'selector': 'td',
+        'props': [('background-color', '#FFE4B5')]
+    }
+]))
+else:
+st.write("Нет данных для выбранных фильтров.")
 
-    st.header("Топ поставщиков")
-    if not filtered_data.empty:
-        supplier_totals = filtered_data.groupby("payer")["sum"].sum().nlargest(10).reset_index()
-        supplier_totals['sum'] = supplier_totals['sum'] / 1000  # Перевод в тыс. грн
-        st.table(
-            supplier_totals.rename(columns={'payer': 'Плательщик', 'sum': 'Сума'}).style.format({'Сума': '{:,.0f}'}))
-    else:
-        st.write("Нет данных для выбранных фильтров.")
+st.header("Топ поставщиков")
+if not filtered_data.empty:
+    supplier_totals = filtered_data.groupby("payer")["sum"].sum().nlargest(10).reset_index()
+    supplier_totals['sum'] = supplier_totals['sum'] / 1000  # Перевод в тыс. грн
+    st.table(
+        supplier_totals.rename(columns={'payer': 'Плательщик', 'sum': 'Сума'}).style.format({'Сума': '{:,.0f}'}))
+else:
+    st.write("Нет данных для выбранных фильтров.")
 
-    if st.button("Скачать отчет в формате Excel"):
-        output_excel(filtered_data, selected_week, selected_report_type, start_date_str, end_date_str)
+if st.button("Скачать отчет в формате Excel"):
+    output_excel(filtered_data, selected_week, selected_report_type, start_date_str, end_date_str)
 
 
 def output_excel(df, week, report_type, start_date, end_date):
