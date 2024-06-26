@@ -94,8 +94,17 @@ def create_dashboard(df):
     st.header("Матрица Поставщик-Плательщик")
     if not filtered_data.empty:
         matrix_data = filtered_data.pivot_table(values='sum', index='payer', columns='recipient', aggfunc='sum', fill_value=0)
+
+        # Add debug prints
+        st.write("Matrix Data Indexes:", matrix_data.index.tolist())
+        st.write("Matrix Data Columns:", matrix_data.columns.tolist())
+        
         top_suppliers = add_others_and_total(matrix_data.sum(axis=1).reset_index(), 0).index
         top_payers = add_others_and_total(matrix_data.sum(axis=0).reset_index(), 0).index
+
+        st.write("Top Suppliers:", top_suppliers.tolist())
+        st.write("Top Payers:", top_payers.tolist())
+
         matrix_data_filtered = matrix_data.loc[top_suppliers, top_payers]
         st.table(matrix_data_filtered)
     else:
