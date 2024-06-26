@@ -64,7 +64,7 @@ def create_dashboard(df):
 
     start_date, end_date = get_date_range_for_week(selected_week, 2024)
     start_date_str = start_date.strftime('%d.%m.%Y')
-    end_date_str = end_date.strftime('%d.%м.%Y')
+    end_date_str = end_date.strftime('%d.%m.%Y')
 
     # Заголовок и стили
     st.markdown(f"""
@@ -122,10 +122,16 @@ def create_dashboard(df):
         summary_data.append(other_row)
         summary_data.append(totals_row)
 
+        # Debug: Print lengths of data and columns
+        print("Summary data length:", len(summary_data))
+        print("Column length:", len(["Recipient"] + top_10_payers.tolist() + ["Others", "Total"]))
+
         # Создаем DataFrame для сводной таблицы
-        summary_df = pd.DataFrame(summary_data, columns=["Recipient"] + top_10_payers.tolist() + ["Others", "Total"])
-        
-        st.table(summary_df)
+        try:
+            summary_df = pd.DataFrame(summary_data, columns=["Recipient"] + top_10_payers.tolist() + ["Others", "Total"])
+            st.table(summary_df)
+        except ValueError as e:
+            st.error(f"Ошибка при создании DataFrame: {e}")
     else:
         st.write("Нет данных для выбранных фильтров.")
 
