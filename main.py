@@ -17,14 +17,21 @@ def filter_data(df, week, report_type):
     if 'account' not in df.columns or 'partner' not in df.columns:
         st.error("'account' или 'partner' колонки не найдены в данных.")
         return pd.DataFrame()  # Возвращаем пустой DataFrame
-    
+
+    # Фильтрация по типу отчета
     if report_type == 'со счетом':
         df_filtered = df[(df['week'] == week) & (df['account'].str.lower() == 'да') & (df['partner'].str.lower() == 'да')]
     else:
         df_filtered = df[(df['week'] == week) & (df['account'].str.lower() == 'нет') & (df['partner'].str.lower() == 'нет')]
-        mask_keywords = ['банк', 'пумб', 'держ', 'обл', 'дтек', 'вдвс', 'мвс', 'дсу', 'дснс', 'дпс', 'митна', 'гук']
-        df_filtered = df_filtered[~df_filtered['payer'].str.contains('|'.join(mask_keywords), case=False, na=False)]
-        df_filtered = df_filtered[~df_filtered['payer'].str.contains('район', case=False, na=False) | df_filtered['payer'].str.contains('крайон', case=False, na=False)]
+
+    # Удаление строк, где 'recipient' содержит любые из mask_keywords
+    mask_keywords = ['банк', 'пумб', 'держ', 'обл', 'дтек', 'вдвс', 'мвс', 'дсу', 'дснс', 'дпс', 'митна', 'гук']
+    df_filtered = df_filtered[~df_filtered['recipient'].str.contains('|'.join(mask_keywords), case=False, na=False)]
+
+    # Удаление строк, где 'recipient' содержит 'район', кроме случаев, когда он содержит 'крайон'
+    df_filtered = df_filtered[~df_filtered['recipient'].str.contains('район', case=False, na=False) | 
+                              df_filtered['recipient'].str.contains('крайон', case=False, na=False)]
+    
     return df_filtered
 
 # Добавление "прочих" и общей суммы к топ-10 спискам
@@ -84,39 +91,39 @@ def create_dashboard(df):
 
     st.header("Матрица Поставщик-Плательщик")
     if not filtered_data.empty:
-        # Создаем DataFrame для текущей недели
-        week_data = df[df["week"] == selected_week]
-
         # Группируем по получателям и суммируем суммы
-        recipient_totals = week_data.groupby("recipient")["sum"].sum().reset_index()
+        recipient_totals = filtered_data.groupby("recipient")["sum"].sum().reset_index()
 
         # Выбираем топ-10 получателей
         top_10_recipients = recipient_totals.sort_values(by="sum", ascending=False).head(10)["recipient"]
 
-        # Сумма всех получателей
-        total_sum = recipient_totals["sum"].sum()
+        # Группируем по плательщикам и суммируем суммы
+        payer_totals = filtered_data.groupby("payer")["sum"].sum().reset_index()
+
+        # Выбираем топ-10 плательщиков
+        top_10_payers = payer_totals.sort_values(by="sum", ascending=False).head(10)["payer"]
 
         # Создаем сводную таблицу
         summary_data = []
 
         for recipient in top_10_recipients:
-            recipient_data = week_data[week_data["recipient"] == recipient]
-            row = [recipient] + [recipient_data[recipient_data["payer"] == payer]["sum"].sum() for payer in df["payer"].unique()] + [recipient_data["sum"].sum()]
+            recipient_data = filtered_data[filtered_data["recipient"] == recipient]
+            row = [recipient] + [recipient_data[recipient_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [recipient_data[~recipient_data["payer"].isin(top_10_payers)]["sum"].sum()]
             summary_data.append(row)
 
         # Добавляем строку для "Прочих"
-        other_data = week_data[~week_data["recipient"].isin(top_10_recipients)]
-        other_row = ["Others"] + [other_data[other_data["payer"] == payer]["sum"].sum() for payer in df["payer"].unique()] + [other_data["sum"].sum()]
+        other_data = filtered_data[~filtered_data["recipient"].isin(top_10_recipients)]
+        other_row = ["Others"] + [other_data[other_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [other_data[~other_data["payer"].isin(top_10_payers)]["sum"].sum()]
 
         # Добавляем итоги
-        totals_row = ["Total"] + [week_data[week_data["payer"] == payer]["sum"].sum() for payer in df["payer"].unique()] + [total_sum]
+        totals_row = ["Total"] + [filtered_data[filtered_data["payer"] == payer]["sum"].sum() for payer in top_10_payers] + [filtered_data[~filtered_data["payer"].isin(top_10_payers)]["sum"].sum()]
 
         # Объединяем все строки
         summary_data.append(other_row)
         summary_data.append(totals_row)
 
         # Создаем DataFrame для сводной таблицы
-        summary_df = pd.DataFrame(summary_data, columns=["Recipient"] + df["payer"].unique().tolist() + ["Total"])
+        summary_df = pd.DataFrame(summary_data, columns=["Recipient"] + top_10_payers.tolist() + ["Others", "Total"])
         
         st.table(summary_df)
     else:
@@ -153,18 +160,22 @@ def output_excel(df, week, report_type, start_date, end_date):
         top_payers = top_payers.tolist() + ['Others', 'Gross Total']
         matrix_data_filtered = matrix_data.loc[top_suppliers, top_payers]
 
-        matrix_data_filtered.to_excel(writer, sheet_name='Матрица поставщик-плательщик', index=True)
+        matrix_data_filtered.to_excel(writer, sheet_name='Матрица', index=True)
 
-    with open('financial_report.xlsx', 'rb') as f:
-        st.download_button('Скачать отчет в формате Excel', f, file_name='financial_report.xlsx')
+    st.write("Отчет успешно создан: [скачать отчет](financial_report.xlsx)")
 
-# Основная функция для запуска Streamlit приложения
-def main():
-    st.set_page_config(layout="wide")
+# Конфигурация страницы и запуск приложения Streamlit
+st.set_page_config(layout="wide")
+st.title("Финансовый отчет")
 
-    df = load_data("https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx")
-    st.write("Данные успешно загружены.")
+# Укажите URL вашего Excel файла
+excel_url = "URL вашего Excel файла"
+df = load_data(excel_url)
+
+if not df.empty:
     create_dashboard(df)
+else:
+    st.error("Не удалось загрузить данные. Проверьте URL и попробуйте снова.")
 
 if __name__ == "__main__":
     main()
