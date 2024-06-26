@@ -4,6 +4,7 @@ import openpyxl
 import requests
 from io import BytesIO
 import datetime
+import altair as alt
 
 @st.cache_data
 def load_data(url):
@@ -64,28 +65,45 @@ def create_dashboard(df):
     st.header("Динамика платежей")
     if not filtered_data.empty:
         dynamics_data = df[df['week'] <= selected_week].groupby('week')['sum'].sum().reset_index()
-        st.line_chart(dynamics_data.set_index('week'))
+        dynamics_data['sum'] = dynamics_data['sum'] / 1000  # Перевод в тыс. грн
+
+        line_chart = alt.Chart(dynamics_data).mark_line(point=alt.OverlayMarkDef()).encode(
+            x='week:O',
+            y=alt.Y('sum:Q', axis=alt.Axis(format=',.0f', title='Сумма (тыс. грн)')),
+            tooltip=['week', alt.Tooltip('sum:Q', format=',.0f')]
+        ).properties(
+            title='Динамика платежей по неделям'
+        ).interactive()
+
+        st.altair_chart(line_chart, use_container_width=True)
 
         recipient_totals = filtered_data.groupby("recipient")["sum"].sum()
         top_10_recipients = recipient_totals.nlargest(10).index
 
         recipients_pivot = filtered_data.pivot_table(values='sum', index='recipient', columns='week', aggfunc='sum', fill_value=0)
         recipients_pivot = recipients_pivot.loc[top_10_recipients]
-        recipients_pivot['Total'] = recipients_pivot.sum(axis=1)
+        recipients_pivot['Total'] = recipients_pivot.sum(axis=1) / 1000  # Перевод в тыс. грн
 
         other_data = filtered_data[~filtered_data["recipient"].isin(top_10_recipients)]
         other_totals = other_data.groupby('week')['sum'].sum()
-        other_totals['Total'] = other_totals.sum()
+        other_totals['Total'] = other_totals.sum() / 1000  # Перевод в тыс. грн
         recipients_pivot.loc['Others'] = other_totals
 
         st.table(recipients_pivot)
     else:
         st.write("Нет данных для выбранных фильтров.")
 
-    st.header("Топ платежей")
+    st.header("Топ получателей")
     if not filtered_data.empty:
-        top_payments = filtered_data.groupby('payer')['sum'].sum().nlargest(10).reset_index()
-        st.table(top_payments)
+        top_recipients = filtered_data.groupby(['recipient_code', 'recipient'])['sum'].sum().nlargest(10).reset_index()
+        others_sum = filtered_data[~filtered_data['recipient'].isin(top_recipients['recipient'])]['sum'].sum() / 1000  # Перевод в тыс. грн
+        total_sum = filtered_data['sum'].sum() / 1000  # Перевод в тыс. грн
+
+        top_recipients['sum'] = top_recipients['sum'] / 1000  # Перевод в тыс. грн
+        top_recipients.loc[len(top_recipients.index)] = ['Другие', 'Другие', others_sum]
+        top_recipients.loc[len(top_recipients.index)] = ['Всего', 'Всего', total_sum]
+
+        st.table(top_recipients.rename(columns={'recipient_code': 'Код получателя', 'recipient': 'Получатель', 'sum': 'Сума за ную неделю'}).style.format({'Сума за ную неделю': '{:,.0f}'}))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
@@ -113,7 +131,8 @@ def create_dashboard(df):
 
         try:
             summary_df = pd.DataFrame(summary_data, columns=["Recipient"] + top_10_payers.tolist() + ["Total"])
-            st.table(summary_df)
+            summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:] / 1000  # Перевод в тыс. грн
+            st.table(summary_df.style.format({col: '{:,.0f}' for col in summary_df.columns[1:]}))
         except ValueError as e:
             st.error(f"Ошибка при создании DataFrame: {e}")
     else:
@@ -122,13 +141,48 @@ def create_dashboard(df):
     st.header("Топ поставщиков")
     if not filtered_data.empty:
         supplier_totals = filtered_data.groupby("payer")["sum"].sum().nlargest(10).reset_index()
-        st.table(supplier_totals)
+        supplier_totals['sum'] = supplier_totals['sum'] / 1000  # Перевод в тыс. грн
+        st.table(supplier_totals.rename(columns={'payer': 'Плательщик', 'sum': 'Сума'}).style.format({'Сума': '{:,.0f}'}))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
-    output_excel(filtered_data, selected_week, selected_report_type, start_date_str, end_date_str)
+    if st.button("Скачать отчет в формате Excel"):
+        output_excel(filtered_data, selected_week, selected_report_type, start_date_str, end_date_str)
+
+def output_excel(df, week, report_type, start_date, end_date):
+    with pd.ExcelWriter('financial_report.xlsx') as writer:
+        dynamics_data = df[df['week'] <= week].groupby('week')['sum'].sum().reset_index()
+        dynamics_data['sum'] = dynamics_data['sum'] / 1000  # Перевод в тыс. грн
+        dynamics_data.to_excel(writer, sheet_name='Динамика', index=False)
+
+        supplier_data = df.groupby(['week', 'payer'])['sum'].sum().reset_index()
+        supplier_data['sum'] = supplier_data['sum'] / 1000  # Перевод в тыс. грн
+        supplier_data.to_excel(writer, sheet_name='Платежи по поставщикам', index=False)
+
+        matrix_data = df.pivot_table(values='sum', index='payer', columns='recipient', aggfunc='sum', fill_value=0)
+        matrix_data.loc['Others'] = matrix_data.loc[~matrix_data.index.isin(top_suppliers)].sum()
+        matrix_data.loc['Gross Total'] = matrix_data.sum()
+        matrix_data['Others'] = matrix_data[~matrix_data.columns.isin(top_payers)].sum(axis=1)
+        matrix_data['Gross Total'] = matrix_data.sum(axis=1)
+
+        top_suppliers = top_suppliers.tolist() + ['Others', 'Gross Total']
+        top_payers = top_payers.tolist() + ['Others', 'Gross Total']
+        matrix_data_filtered = matrix_data.loc[top_suppliers, top_payers]
+
+        matrix_data_filtered.to_excel(writer, sheet_name='Матрица', index=True)
+
+    st.write("Отчет успешно создан: [скачать отчет](financial_report.xlsx)")
+
+st.set_page_config(layout="wide")
+st.title("Финансовый отчет")
+
+excel_url = "https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx"
+df = load_data(excel_url)
+
+if not df.empty:
+    create_dashboard(df)
+else:
+    st.error("Не удалось загрузить данные. Проверьте URL и попробуйте снова.")
 
 if __name__ == "__main__":
-    url = "https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx"
-    df = load_data(url)
-    create_dashboard(df)
+    main()
