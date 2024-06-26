@@ -89,11 +89,11 @@ def create_dashboard(df):
 
         other_data = filtered_data[~filtered_data["recipient"].isin(top_10_recipients)]
         other_totals = other_data.groupby('week')['sum'].sum()
-        other_totals['Total'] = other_totals.sum() / 1000  # Перевод в тыс. грн
+        other_totals.loc['Total'] = other_totals.sum() / 1000  # Перевод в тыс. грн
         recipients_pivot.loc['Others'] = other_totals
 
-        recipients_pivot = recipients_pivot.apply(pd.to_numeric, errors='coerce')  # Convert all values to numeric, setting errors to NaN
-        recipients_pivot = recipients_pivot.fillna(0)  # Fill NaN with 0
+        recipients_pivot = recipients_pivot.apply(pd.to_numeric, errors='coerce')  # Преобразование всех значений в числовые, ошибки в NaN
+        recipients_pivot = recipients_pivot.fillna(0)  # Замена NaN на 0
 
         st.table(recipients_pivot.style.format("{:,.0f}").set_table_styles([
             {
@@ -102,7 +102,7 @@ def create_dashboard(df):
             },
             {
                 'selector': 'td',
-                'props': [('background-color', '#FFFAF0')]
+                'props': [('background-color', '#FFE4B5')]
             }
         ]))
     else:
@@ -118,8 +118,8 @@ def create_dashboard(df):
         top_recipients.loc[len(top_recipients.index)] = ['Другие', 'Другие', others_sum]
         top_recipients.loc[len(top_recipients.index)] = ['Всего', 'Всего', total_sum]
 
-        top_recipients = top_recipients.apply(pd.to_numeric, errors='coerce')  # Convert all values to numeric, setting errors to NaN
-        top_recipients = top_recipients.fillna(0)  # Fill NaN with 0
+        top_recipients = top_recipients.apply(pd.to_numeric, errors='coerce')  # Преобразование всех значений в числовые, ошибки в NaN
+        top_recipients = top_recipients.fillna(0)  # Замена NaN на 0
 
         st.table(top_recipients.rename(columns={'code': 'Код получателя', 'recipient': 'Получатель', 'sum': 'Сума (тыс. грн)'}).style.format({'Сума (тыс. грн)': '{:,.0f}'}).set_table_styles([
             {
@@ -128,7 +128,7 @@ def create_dashboard(df):
             },
             {
                 'selector': 'td',
-                'props': [('background-color', '#FFFAF0')]
+                'props': [('background-color', '#FFE4B5')]
             }
         ]))
     else:
@@ -156,94 +156,55 @@ def create_dashboard(df):
         summary_data.append(other_row)
         summary_data.append(totals_row)
 
-        columns = ["Recipient"] + list(top_10_payers) + ["Total"]
-        summary_df = pd.DataFrame(summary_data, columns=columns)
-        summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:].div(1000)  # Перевод в тыс. грн
+        column_names = ["Recipient"] + top_10_payers.tolist() + ["Total"]
 
-        styled_df = summary_df.style.format({
-            'Recipient': '{}',
-            **{payer: '{:,.0f}' for payer in top_10_payers},
-            'Total': '{:,.0f}'
-        }).set_table_styles([
+        matrix_df = pd.DataFrame(summary_data, columns=column_names)
+        matrix_df.iloc[:, 1:] = matrix_df.iloc[:, 1:] / 1000  # Перевод в тыс. грн
+
+        st.table(matrix_df.style.format("{:,.0f}").set_table_styles([
             {
                 'selector': 'th',
                 'props': [('background-color', '#FFA500'), ('color', 'white')]
             },
             {
                 'selector': 'td',
-                'props': [('background-color', '#FFFAF0')]
+                'props': [('background-color', '#FFE4B5')]
             }
-        ])
-
-        st.table(styled_df)
+        ]))
     else:
         st.write("Нет данных для выбранных фильтров.")
-
-    st.header("Топ плательщиков")
+    st.header("Топ плательщики")
     if not filtered_data.empty:
-        supplier_totals = filtered_data.groupby("payer")["sum"].sum().nlargest(10).reset_index()
-        others_sum = filtered_data[~filtered_data["payer"].isin(supplier_totals["payer"])]["sum"].sum() / 1000  # Перевод в тыс. грн
-        total_sum = filtered_data["sum"].sum() / 1000  # Перевод в тыс. грн
+        top_payers = filtered_data.groupby(['code_payer', 'payer'])['sum'].sum().nlargest(10).reset_index()
+        others_sum = filtered_data[~filtered_data['payer'].isin(top_payers['payer'])]['sum'].sum() / 1000  # Перевод в тыс. грн
+        total_sum = filtered_data['sum'].sum() / 1000  # Перевод в тыс. грн
 
-        supplier_totals["sum"] = supplier_totals["sum"] / 1000  # Перевод в тыс. грн
-        supplier_totals.loc[len(supplier_totals.index)] = ["Другие", others_sum]
-        supplier_totals.loc[len(supplier_totals.index)] = ["Всего", total_sum]
+        top_payers['sum'] = top_payers['sum'] / 1000  # Перевод в тыс. грн
+        top_payers.loc[len(top_payers.index)] = ['Другие', 'Другие', others_sum]
+        top_payers.loc[len(top_payers.index)] = ['Всего', 'Всего', total_sum]
 
-        supplier_totals = supplier_totals.apply(pd.to_numeric, errors='coerce')  # Convert all values to numeric, setting errors to NaN
-        supplier_totals = supplier_totals.fillna(0)  # Fill NaN with 0
+        top_payers = top_payers.apply(pd.to_numeric, errors='coerce')  # Преобразование всех значений в числовые, ошибки в NaN
+        top_payers = top_payers.fillna(0)  # Замена NaN на 0
 
-        st.table(supplier_totals.rename(columns={"payer": "Плательщик", "sum": "Сума (тыс. грн)"}).style.format({"Сума (тыс. грн)": "{:,.0f}"}).set_table_styles([
+        st.table(top_payers.rename(columns={'code_payer': 'Код плательщика', 'payer': 'Плательщик', 'sum': 'Сума (тыс. грн)'}).style.format({'Сума (тыс. грн)': '{:,.0f}'}).set_table_styles([
             {
                 'selector': 'th',
                 'props': [('background-color', '#FFA500'), ('color', 'white')]
             },
             {
                 'selector': 'td',
-                'props': [('background-color', '#FFFAF0')]
+                'props': [('background-color', '#FFE4B5')]
             }
         ]))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
-    if st.button("Скачать отчет в формате Excel"):
-        output_excel(filtered_data, selected_week, selected_report_type, start_date_str, end_date_str)
-
-def output_excel(df, week, report_type, start_date, end_date):
-    with pd.ExcelWriter("financial_report.xlsx", engine="openpyxl") as writer:
-        dynamics_data = df.groupby("week")["sum"].sum().reset_index()
-        dynamics_data["sum"] = dynamics_data["sum"] / 1000  # Перевод в тыс. грн
-        dynamics_data.to_excel(writer, sheet_name="Динамика", index=False, float_format="%.2f")
-
-        supplier_data = df.groupby(["week", "payer"])["sum"].sum().reset_index()
-        supplier_data["sum"] = supplier_data["sum"] / 1000  # Перевод в тыс. грн
-        supplier_data.to_excel(writer, sheet_name="Платежи по поставщикам", index=False, float_format="%.2f")
-
-        matrix_data = df.pivot_table(values="sum", index="payer", columns="recipient", aggfunc="sum", fill_value=0)
-        top_suppliers = matrix_data.sum(axis=1).nlargest(10).index
-        top_payers = matrix_data.sum(axis=0).nlargest(10).index
-
-        matrix_data.loc["Others"] = matrix_data.loc[~matrix_data.index.isin(top_suppliers)].sum()
-        matrix_data.loc["Gross Total"] = matrix_data.sum()
-        matrix_data["Others"] = matrix_data[~matrix_data.columns.isin(top_payers)].sum(axis=1)
-        matrix_data["Gross Total"] = matrix_data.sum(axis=1)
-
-        top_suppliers = top_suppliers.tolist() + ["Others", "Gross Total"]
-        top_payers = top_payers.tolist() + ["Others", "Gross Total"]
-        matrix_data_filtered = matrix_data.loc[top_suppliers, top_payers] / 1000  # Перевод в тыс. грн
-
-        matrix_data_filtered.to_excel(writer, sheet_name="Матрица", index=True, float_format="%.2f")
-
-    st.write("Отчет успешно создан: [скачать отчет](financial_report.xlsx)")
-
-st.set_page_config(layout="wide")
-
-excel_url = "https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx"
-df = load_data(excel_url)
-
-if not df.empty:
-    create_dashboard(df)
-else:
-    st.error("Не удалось загрузить данные. Проверьте URL и попробуйте снова.")
-
 if __name__ == "__main__":
-    main()
+    st.set_page_config(page_title="Платежи на крупных контрагентов ФОЗЗИ", layout="wide")
+    data_url = st.text_input("https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx")
+    
+    if data_url:
+        df = load_data(data_url)
+        create_dashboard(df)
+    else:
+        st.write("Пожалуйста, введите URL файла с данными.")
