@@ -159,7 +159,7 @@ def create_dashboard(df):
             {
                 'selector': 'td',
                 'props': [('background-color', '#FFE4BB5')]
-            }]
+            }])
     else:
         st.write("Нет данных для выбранных фильтров.")
 
