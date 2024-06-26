@@ -122,7 +122,7 @@ def create_dashboard(df):
         st.write("Нет данных для выбранных фильтров.")
 
 st.header("Матрица Поставщик-Плательщик")
-    if not filtered_data.empty:
+if not filtered_data.empty:
         recipient_totals = filtered_data.groupby("recipient")["sum"].sum().reset_index()
         top_10_recipients = recipient_totals.sort_values(by="sum", ascending=False).head(10)["recipient"]
 
