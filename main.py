@@ -18,7 +18,7 @@ def filter_data(df, week, report_type):
         st.error("'account' или 'partner' колонки не найдены в данных.")
         return pd.DataFrame()
 
-    if report_type == 'со счетом':
+    if report_type == 'з відкритим рахунком':
         df_filtered = df[
             (df['week'] <= week) & (df['account'].str.lower() == 'да') & (df['partner'].str.lower() == 'да')]
     else:
@@ -41,15 +41,11 @@ def get_date_range_for_week(week_number, year):
 
 
 def create_dashboard(df):
-    st.sidebar.header("Фильтры")
-    selected_week = st.sidebar.selectbox("Выберите неделю", sorted(df['week'].unique()))
-    selected_report_type = st.sidebar.radio("Выберите тип отчета", ['со счетом', 'без счета'])
-
-    st.write(f"Выбранная неделя: {selected_week}")
-    st.write(f"Выбранный тип отчета: {selected_report_type}")
+    st.sidebar.header("Фільтри")
+    selected_week = st.sidebar.selectbox("Оберіть тиждень", sorted(df['week'].unique()))
+    selected_report_type = st.sidebar.radio("Оберіть тим звіту", ['з відкритим рахунком', 'без відкритого рахунку'])
 
     filtered_data = filter_data(df, selected_week, selected_report_type)
-    st.write(f"Фильтрованные данные: {filtered_data.shape}")
 
     start_date, end_date = get_date_range_for_week(selected_week, 2024)
     start_date_str = start_date.strftime('%d.%m.%Y')
@@ -57,22 +53,22 @@ def create_dashboard(df):
 
     st.markdown(f"""
         <div style="background-color:#FFA500;padding:10px;border-radius:10px">
-            <h1 style="color:white;text-align:center;">Платежи на крупных контрагентов ФОЗЗИ за пределы Востока за период {start_date_str} - {end_date_str}</h1>
+            <h1 style="color:white;text-align:center;">Виплати великим контрагентам FOZZI за межами ПАТ "БАНК ВОСТОК" за період {start_date_str} - {end_date_str}</h1>
             <h2 style="color:white;text-align:right;">Неделя {selected_week}</h2>
         </div>
     """, unsafe_allow_html=True)
 
-    st.header("Динамика платежей")
+    st.header("Динаміка виплат")
     if not filtered_data.empty:
         dynamics_data = df[df['week'] <= selected_week].groupby('week')['sum'].sum().reset_index()
         dynamics_data['sum'] = dynamics_data['sum'] / 1000  # Перевод в тыс. грн
 
         line_chart = alt.Chart(dynamics_data).mark_line(point=alt.OverlayMarkDef()).encode(
             x='week:O',
-            y=alt.Y('sum:Q', axis=alt.Axis(format=',.0f', title='Сумма (тыс. грн)')),
+            y=alt.Y('sum:Q', axis=alt.Axis(format=',.0f', title='Сума (тис. грн)')),
             tooltip=['week', alt.Tooltip('sum:Q', format=',.0f')]
         ).properties(
-            title='Динамика платежей по неделям'
+            title='Динаміка виплат по тижням'
         ).interactive()
 
         st.altair_chart(line_chart, use_container_width=True)
@@ -87,14 +83,14 @@ def create_dashboard(df):
 
         other_data = filtered_data[~filtered_data["recipient"].isin(top_10_recipients)]
         other_totals = other_data.groupby('week')['sum'].sum()
-        other_totals['Total'] = other_totals.sum() / 1000  # Перевод в тыс. грн
+        other_totals['Всього'] = other_totals.sum() / 1000  # Перевод в тыс. грн
         recipients_pivot.loc['Others'] = other_totals
 
         st.table(recipients_pivot.style.format("{:,.0f}"))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
-    st.header("Топ получателей")
+    st.header("Топ контрагентів")
     if not filtered_data.empty:
         top_recipients = filtered_data.groupby(['code', 'recipient'])['sum'].sum().nlargest(10).reset_index()
         others_sum = filtered_data[~filtered_data['recipient'].isin(top_recipients['recipient'])][
@@ -102,16 +98,16 @@ def create_dashboard(df):
         total_sum = filtered_data['sum'].sum() / 1000  # Перевод в тыс. грн
 
         top_recipients['sum'] = top_recipients['sum'] / 1000  # Перевод в тыс. грн
-        top_recipients.loc[len(top_recipients.index)] = ['Другие', 'Другие', others_sum]
-        top_recipients.loc[len(top_recipients.index)] = ['Всего', 'Всего', total_sum]
+        top_recipients.loc[len(top_recipients.index)] = ['Інші', 'Інші', others_sum]
+        top_recipients.loc[len(top_recipients.index)] = ['Всього', 'Всього', total_sum]
 
         st.table(top_recipients.rename(
-            columns={'code': 'Код получателя', 'recipient': 'Получатель', 'sum': 'Сума за ную неделю'}).style.format(
-            {'Сума за ную неделю': '{:,.0f}'}))
+            columns={'code': 'ЄДРПОУ отримувача', 'recipient': 'Отримувач', 'sum': 'Сума, тис. грн.'}).style.format(
+            {'Сума, тис. грн.': '{:,.0f}'}))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
-    st.header("Матрица Поставщик-Плательщик")
+    st.header("Платежі за тиждень в розрізі платників")
     if not filtered_data.empty:
         recipient_totals = filtered_data.groupby("recipient")["sum"].sum().reset_index()
         top_10_recipients = recipient_totals.sort_values(by="sum", ascending=False).head(10)["recipient"]
@@ -147,15 +143,16 @@ def create_dashboard(df):
     else:
         st.write("Нет данных для выбранных фильтров.")
 
-    st.header("Топ поставщиков")
+    st.header("Топ постачальників")
     if not filtered_data.empty:
         supplier_totals = filtered_data.groupby("payer")["sum"].sum().nlargest(10).reset_index()
         supplier_totals['sum'] = supplier_totals['sum'] / 1000  # Перевод в тыс. грн
         st.table(
-            supplier_totals.rename(columns={'payer': 'Плательщик', 'sum': 'Сума'}).style.format({'Сума': '{:,.0f}'}))
+            supplier_totals.rename(columns={'payer': 'Платник', 'sum': 'Сума, тис. грн'}).style.format({'Сума': '{:,.0f}'}))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
+   """ 
     if st.button("Скачать отчет в формате Excel```python"):
         output_excel(filtered_data, selected_week, selected_report_type, start_date_str, end_date_str)
 
@@ -186,10 +183,9 @@ def output_excel(df, week, report_type, start_date, end_date):
         matrix_data_filtered.to_excel(writer, sheet_name='Матрица', index=True)
 
     st.write("Отчет успешно создан: [скачать отчет](financial_report.xlsx)")
-
+"""
 
 st.set_page_config(layout="wide")
-st.title("Финансовый отчет")
 
 excel_url = "https://raw.githubusercontent.com/Havrilukuriy2004/Fozzi_report/main/raw_data_for_python_final.xlsx"
 df = load_data(excel_url)
