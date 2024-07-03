@@ -54,7 +54,7 @@ def create_dashboard(df):
     st.markdown(f"""
         <div style="background-color:#FFA500;padding:10px;border-radius:10px">
             <h1 style="color:white;text-align:center;">Виплати великим контрагентам FOZZI за межами ПАТ "БАНК ВОСТОК" за період {start_date_str} - {end_date_str}</h1>
-            <h2 style="color:white;text-align:right;">Неделя {selected_week}</h2>
+            <h2 style="color:white;text-align:right;">Тиждень {selected_week}</h2>
         </div>
     """, unsafe_allow_html=True)
 
@@ -153,7 +153,7 @@ def create_dashboard(df):
         st.write("Нет данных для выбранных фильтров.")
         
 
-    if st.button("Скачать отчет в формате Excel"):
+    if st.button("Завантажити звіт в форматі Excel"):
         output_excel(filtered_data, selected_week, selected_report_type, start_date_str, end_date_str)
 
 
