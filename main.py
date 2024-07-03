@@ -90,7 +90,7 @@ def create_dashboard(df):
     else:
         st.write("Нет данных для выбранных фильтров.")
 
-    st.header("Топ контрагентів")
+    st.header("Топ постачальників")
     if not filtered_data.empty:
         top_recipients = filtered_data.groupby(['code', 'recipient'])['sum'].sum().nlargest(10).reset_index()
         others_sum = filtered_data[~filtered_data['recipient'].isin(top_recipients['recipient'])][
@@ -143,7 +143,7 @@ def create_dashboard(df):
     else:
         st.write("Нет данных для выбранных фильтров.")
 
-    st.header("Топ постачальників")
+    st.header("Топ платників")
     if not filtered_data.empty:
         supplier_totals = filtered_data.groupby("payer")["sum"].sum().nlargest(10).reset_index()
         supplier_totals['sum'] = supplier_totals['sum'] / 1000  # Перевод в тыс. грн
