@@ -6,7 +6,7 @@ import datetime
 import altair as alt
 
 
-@st.cache
+@st.cache_data
 def load_data(url):
     response = requests.get(url)
     df = pd.read_excel(BytesIO(response.content), engine='openpyxl')
@@ -15,7 +15,7 @@ def load_data(url):
 
 def filter_data(df, week, report_type):
     if 'account' not in df.columns or 'partner' not in df.columns:
-        st.error("'account' или 'partner' колонки не найдены в данных.")
+        st.error("'account' або 'partner' колонки не знайдені в даних.")
         return pd.DataFrame()
 
     if report_type == 'з відкритим рахунком':
@@ -92,10 +92,10 @@ def create_dashboard(df):
 
     st.header("Топ постачальників")
     if not filtered_data.empty:
-        top_recipients = filtered_data.groupby(['code', 'recipient'])['sum'].sum().nlargest(10).reset_index()
-        others_sum = filtered_data[~filtered_data['recipient'].isin(top_recipients['recipient'])][
-                         'sum'].sum() / 1000  # Перевод в тыс. грн
-        total_sum = filtered_data['sum'].sum() / 1000  # Перевод в тыс. грн
+        week_data = filtered_data[filtered_data['week'] == selected_week]  # Filter data for the selected week
+        top_recipients = week_data.groupby(['code', 'recipient'])['sum'].sum().nlargest(10).reset_index()
+        others_sum = week_data[~week_data['recipient'].isin(top_recipients['recipient'])]['sum'].sum() / 1000  # Перевод в тыс. грн
+        total_sum = week_data['sum'].sum() / 1000  # Перевод в тыс. грн
 
         top_recipients['sum'] = top_recipients['sum'] / 1000  # Перевод в тыс. грн
         top_recipients.loc[len(top_recipients.index)] = ['Інші', 'Інші', others_sum]
@@ -137,9 +137,7 @@ def create_dashboard(df):
         summary_df = pd.DataFrame(summary_data, columns=column_names)
         summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:] / 1000  # Convert to thousands of UAH
 
-        # Display the DataFrame without styling to check if it renders correctly
         st.table(summary_df)
-
     else:
         st.write("Нет данных для выбранных фильтров.")
 
