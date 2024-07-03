@@ -49,7 +49,7 @@ def create_dashboard(df):
 
     start_date, end_date = get_date_range_for_week(selected_week, 2024)
     start_date_str = start_date.strftime('%d.%m.%Y')
-    end_date_str = end_date.strftime('%d.%m.%Y')
+    end_date_str = end_date.strftime('%d.%м.%Y')
 
     st.markdown(f"""
         <div style="background-color:#FFA500;padding:10px;border-radius:10px">
@@ -86,7 +86,7 @@ def create_dashboard(df):
         other_totals['Всього'] = other_totals.sum() / 1000  # Перевод в тыс. грн
         recipients_pivot.loc['Others'] = other_totals
 
-        st.table(recipients_pivot.style.format("{:,.2f}".replace(',', ' ').replace('.', ',')))
+        st.table(recipients_pivot.style.format(lambda x: format_european_style(x)))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
@@ -103,7 +103,7 @@ def create_dashboard(df):
 
         st.table(top_recipients.rename(
             columns={'code': 'ЄДРПОУ отримувача', 'recipient': 'Отримувач', 'sum': 'Сума, тис. грн.'}).style.format(
-            {'Сума, тис. грн.': format_european_style}))
+            {'Сума, тис. грн.': lambda x: format_european_style(x)}))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
@@ -137,7 +137,7 @@ def create_dashboard(df):
         summary_df = pd.DataFrame(summary_data, columns=column_names)
         summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:] / 1000  # Convert to thousands of UAH
 
-        st.table(summary_df.style.format({col: format_european_style for col in summary_df.columns[1:]}))
+        st.table(summary_df.style.format({col: lambda x: format_european_style(x) for col in summary_df.columns[1:]}))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
@@ -146,7 +146,7 @@ def create_dashboard(df):
         supplier_totals = filtered_data.groupby("payer")["sum"].sum().nlargest(10).reset_index()
         supplier_totals['sum'] = supplier_totals['sum'] / 1000  # Перевод в тыс. грн
         st.table(
-            supplier_totals.rename(columns={'payer': 'Платник', 'sum': 'Сума, тис. грн'}).style.format({'Сума, тис. грн': format_european_style}))
+            supplier_totals.rename(columns={'payer': 'Платник', 'sum': 'Сума, тис. грн'}).style.format({'Сума, тис. грн': lambda x: format_european_style(x)}))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
