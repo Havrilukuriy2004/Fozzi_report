@@ -5,13 +5,15 @@ from io import BytesIO
 import datetime
 import altair as alt
 
+# Define custom formatter function
+def format_european_style(x):
+    return f'{x:,.2f}'.replace(',', ' ').replace('.', ',')
 
 @st.cache_data
 def load_data(url):
     response = requests.get(url)
     df = pd.read_excel(BytesIO(response.content), engine='openpyxl')
     return df
-
 
 def filter_data(df, week, report_type):
     if 'account' not in df.columns or 'partner' not in df.columns:
@@ -32,13 +34,11 @@ def filter_data(df, week, report_type):
 
     return df_filtered
 
-
 def get_date_range_for_week(week_number, year):
     first_day_of_year = datetime.datetime(year, 1, 1)
     monday = first_day_of_year + datetime.timedelta(weeks=int(week_number) - 1, days=-first_day_of_year.weekday())
     sunday = monday + datetime.timedelta(days=6)
     return monday, sunday
-
 
 def create_dashboard(df):
     st.sidebar.header("Фільтри")
@@ -86,7 +86,7 @@ def create_dashboard(df):
         other_totals['Всього'] = other_totals.sum() / 1000  # Перевод в тыс. грн
         recipients_pivot.loc['Others'] = other_totals
 
-        st.table(recipients_pivot.style.format("{:,.0f}"))
+        st.table(recipients_pivot.style.format("{:,.2f}".replace(',', ' ').replace('.', ',')))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
@@ -103,7 +103,7 @@ def create_dashboard(df):
 
         st.table(top_recipients.rename(
             columns={'code': 'ЄДРПОУ отримувача', 'recipient': 'Отримувач', 'sum': 'Сума, тис. грн.'}).style.format(
-            {'Сума, тис. грн.': '{:,.0f}'}))
+            {'Сума, тис. грн.': format_european_style}))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
@@ -137,7 +137,7 @@ def create_dashboard(df):
         summary_df = pd.DataFrame(summary_data, columns=column_names)
         summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:] / 1000  # Convert to thousands of UAH
 
-        st.table(summary_df)
+        st.table(summary_df.style.format({col: format_european_style for col in summary_df.columns[1:]}))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
@@ -146,14 +146,12 @@ def create_dashboard(df):
         supplier_totals = filtered_data.groupby("payer")["sum"].sum().nlargest(10).reset_index()
         supplier_totals['sum'] = supplier_totals['sum'] / 1000  # Перевод в тыс. грн
         st.table(
-            supplier_totals.rename(columns={'payer': 'Платник', 'sum': 'Сума, тис. грн'}).style.format({'Сума': '{:,.0f}'}))
+            supplier_totals.rename(columns={'payer': 'Платник', 'sum': 'Сума, тис. грн'}).style.format({'Сума, тис. грн': format_european_style}))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
-
     if st.button("Завантажити звіт в форматі Excel"):
         output_excel(filtered_data, selected_week, selected_report_type, start_date_str, end_date_str)
-
 
 def output_excel(df, week, report_type, start_date, end_date):
     with pd.ExcelWriter('financial_report.xlsx') as writer:
@@ -181,7 +179,6 @@ def output_excel(df, week, report_type, start_date, end_date):
         matrix_data_filtered.to_excel(writer, sheet_name='Матрица', index=True)
 
     st.write("Отчет успешно создан: [скачать отчет](financial_report.xlsx)")
-
 
 st.set_page_config(layout="wide")
 
