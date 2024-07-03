@@ -152,8 +152,8 @@ def create_dashboard(df):
     else:
         st.write("Нет данных для выбранных фильтров.")
         
-""" 
-    if st.button("Скачать отчет в формате Excel```python"):
+
+    if st.button("Скачать отчет в формате Excel"):
         output_excel(filtered_data, selected_week, selected_report_type, start_date_str, end_date_str)
 
 
@@ -183,7 +183,7 @@ def output_excel(df, week, report_type, start_date, end_date):
         matrix_data_filtered.to_excel(writer, sheet_name='Матрица', index=True)
 
     st.write("Отчет успешно создан: [скачать отчет](financial_report.xlsx)")
-"""
+
 
 st.set_page_config(layout="wide")
 
