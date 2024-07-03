@@ -43,7 +43,7 @@ def get_date_range_for_week(week_number, year):
 def create_dashboard(df):
     st.sidebar.header("Фільтри")
     selected_week = st.sidebar.selectbox("Оберіть тиждень", sorted(df['week'].unique()))
-    selected_report_type = st.sidebar.radio("Оберіть тим звіту", ['з відкритим рахунком', 'без відкритого рахунку'])
+    selected_report_type = st.sidebar.radio("Оберіть тип звіту", ['з відкритим рахунком', 'без відкритого рахунку'])
 
     filtered_data = filter_data(df, selected_week, selected_report_type)
 
