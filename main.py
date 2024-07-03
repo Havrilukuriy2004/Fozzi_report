@@ -5,11 +5,13 @@ from io import BytesIO
 import datetime
 import altair as alt
 
+
 @st.cache
 def load_data(url):
     response = requests.get(url)
     df = pd.read_excel(BytesIO(response.content), engine='openpyxl')
     return df
+
 
 def filter_data(df, week, report_type):
     if 'account' not in df.columns or 'partner' not in df.columns:
@@ -30,24 +32,18 @@ def filter_data(df, week, report_type):
 
     return df_filtered
 
+
 def get_date_range_for_week(week_number, year):
     first_day_of_year = datetime.datetime(year, 1, 1)
     monday = first_day_of_year + datetime.timedelta(weeks=int(week_number) - 1, days=-first_day_of_year.weekday())
     sunday = monday + datetime.timedelta(days=6)
     return monday, sunday
 
-def highlight_first_last(val):
-    color = 'orange'
-    return f'background-color: {color}'
-
-def highlight_values(val):
-    color = '#FFD580'  # Light orange
-    return f'background-color: {color}'
 
 def create_dashboard(df):
     st.sidebar.header("Фільтри")
     selected_week = st.sidebar.selectbox("Оберіть тиждень", sorted(df['week'].unique()))
-    selected_report_type = st.sidebar.radio("Оберіть тип звіту", ['з відкритим рахунком', 'без відкритого рахунку'])
+    selected_report_type = st.sidebar.radio("Оберіть тим звіту", ['з відкритим рахунком', 'без відкритого рахунку'])
 
     filtered_data = filter_data(df, selected_week, selected_report_type)
 
@@ -90,14 +86,7 @@ def create_dashboard(df):
         other_totals['Всього'] = other_totals.sum() / 1000  # Перевод в тыс. грн
         recipients_pivot.loc['Others'] = other_totals
 
-        def style_func(data):
-            data = data.style.applymap(highlight_values)
-            data = data.applymap(highlight_first_last, subset=pd.IndexSlice[:, [0, -1]])
-            data = data.applymap(highlight_first_last, subset=pd.IndexSlice[[0, -1], :])
-            return data
-
-        st.table(style_func(recipients_pivot.format("{:,.0f}")))
-
+        st.table(recipients_pivot.style.format("{:,.0f}"))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
@@ -112,10 +101,9 @@ def create_dashboard(df):
         top_recipients.loc[len(top_recipients.index)] = ['Інші', 'Інші', others_sum]
         top_recipients.loc[len(top_recipients.index)] = ['Всього', 'Всього', total_sum]
 
-        st.table(style_func(top_recipients.rename(
-            columns={'code': 'ЄДРПОУ отримувача', 'recipient': 'Отримувач', 'sum': 'Сума, тис. грн.'}).format(
-            {'Сума, тис. грн.': '{:,.0f}'})))
-
+        st.table(top_recipients.rename(
+            columns={'code': 'ЄДРПОУ отримувача', 'recipient': 'Отримувач', 'sum': 'Сума, тис. грн.'}).style.format(
+            {'Сума, тис. грн.': '{:,.0f}'}))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
@@ -149,7 +137,8 @@ def create_dashboard(df):
         summary_df = pd.DataFrame(summary_data, columns=column_names)
         summary_df.iloc[:, 1:] = summary_df.iloc[:, 1:] / 1000  # Convert to thousands of UAH
 
-        st.table(style_func(summary_df))
+        # Display the DataFrame without styling to check if it renders correctly
+        st.table(summary_df)
 
     else:
         st.write("Нет данных для выбранных фильтров.")
@@ -159,12 +148,14 @@ def create_dashboard(df):
         supplier_totals = filtered_data.groupby("payer")["sum"].sum().nlargest(10).reset_index()
         supplier_totals['sum'] = supplier_totals['sum'] / 1000  # Перевод в тыс. грн
         st.table(
-            style_func(supplier_totals.rename(columns={'payer': 'Платник', 'sum': 'Сума, тис. грн'}).format({'Сума': '{:,.0f}'})))
+            supplier_totals.rename(columns={'payer': 'Платник', 'sum': 'Сума, тис. грн'}).style.format({'Сума': '{:,.0f}'}))
     else:
         st.write("Нет данных для выбранных фильтров.")
 
+
     if st.button("Завантажити звіт в форматі Excel"):
         output_excel(filtered_data, selected_week, selected_report_type, start_date_str, end_date_str)
+
 
 def output_excel(df, week, report_type, start_date, end_date):
     with pd.ExcelWriter('financial_report.xlsx') as writer:
@@ -192,6 +183,7 @@ def output_excel(df, week, report_type, start_date, end_date):
         matrix_data_filtered.to_excel(writer, sheet_name='Матрица', index=True)
 
     st.write("Отчет успешно создан: [скачать отчет](financial_report.xlsx)")
+
 
 st.set_page_config(layout="wide")
 
