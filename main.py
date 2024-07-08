@@ -49,7 +49,7 @@ def create_dashboard(df):
 
     start_date, end_date = get_date_range_for_week(selected_week, 2024)
     start_date_str = start_date.strftime('%d.%m.%Y')
-    end_date_str = end_date.strftime('%d.%м.%Y')
+    end_date_str = end_date.strftime('%d.%m.%Y')
 
     st.markdown(f"""
         <div style="background-color:#FFA500;padding:10px;border-radius:10px">
