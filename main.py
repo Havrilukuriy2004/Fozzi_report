@@ -93,6 +93,7 @@ def create_dashboard(df):
     st.header("Топ постачальників")
     if not filtered_data.empty:
         week_data = filtered_data[filtered_data['week'] == selected_week]  # Filter data for the selected week
+        week_data['code'] = week_data['code'].str[:-1]  # Remove the last character from the 'code' column
         top_recipients = week_data.groupby(['code', 'recipient'])['sum'].sum().nlargest(10).reset_index()
         others_sum = week_data[~week_data['recipient'].isin(top_recipients['recipient'])]['sum'].sum() / 1000  # Перевод в тыс. грн
         total_sum = week_data['sum'].sum() / 1000  # Перевод в тыс. грн
